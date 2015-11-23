@@ -22,7 +22,7 @@ TODO:
 - make sure actions get enabled/disabled and checked according to various statuses.
   I might be able to use TAction subclasses with appropriate methods instead of Events
   to handle updating and executing, and just call public methods on the form.
-2) Need a word count status bar
+2) Need a word count status bar (that updates to just the selection word count when that's changed)
 3) Problems printing: it's cutting off the page in the middle of text.
 I can't really test this outside of GTK Webkit, because everything else
 seems to work fine...Maybe there's some standard print media css used
@@ -344,6 +344,16 @@ begin
     FreeAndNil(fIPCClient);
   end;
 
+  if not Application.Terminated then
+  begin
+    // we need to set up the user interface...
+    fOpenAfterLoad := TOpenAfterLoad.Create(Self);
+    SetupDialogs;
+    RegisterActions;
+    AssignKeyboardShortcuts;
+    BuildMenu;
+  end;
+
   for i := 1 to ParamCount do
   begin
     if (ParamStr(i) = '--lazarus') then
@@ -357,14 +367,7 @@ begin
     end;
   end;
 
-  if not Application.Terminated then
-  begin
-    fOpenAfterLoad := TOpenAfterLoad.Create(Self);
-    SetupDialogs;
-    RegisterActions;
-    AssignKeyboardShortcuts;
-    BuildMenu;
-  end;
+
 end;
 
 procedure TMainForm.FormKeyDown(Sender: TObject; var Key: Word;
