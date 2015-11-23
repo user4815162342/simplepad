@@ -1,0 +1,27 @@
+{
+  "name": "SimplePad",
+  "description": "A simple formatted text editor",
+  "main": "index.html",
+  "authors": [
+    "Neil M. Sheldon"
+  ],
+  "license": "MIT",
+  "moduleType": [
+    "node"
+  ],
+  "homepage": "",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "medium-editor": "~5.10.0",
+    "font-awesome": "~4.4.0",
+    "marked": "~0.3.5",
+    "to-markdown": "~1.3.0"
+  }
+}

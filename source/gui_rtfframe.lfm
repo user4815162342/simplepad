@@ -1,0 +1,12 @@
+inherited RTFFrame: TRTFFrame
+  object RTFEditor: TRichMemo[0]
+    Left = 0
+    Height = 399
+    Top = 0
+    Width = 519
+    Align = alClient
+    HideSelection = False
+    TabOrder = 0
+    ZoomFactor = 1
+  end
+end

@@ -1,0 +1,199 @@
+<html>
+   <head>
+     <!-- toolbar button images -->
+     <link rel="stylesheet" type="text/css" href="bower_components/font-awesome/css/font-awesome.css "/>
+     <!-- medium-editor -->
+     <link rel="stylesheet" href="bower_components/medium-editor/dist/css/medium-editor.css">
+     <!-- my own styles -->
+     <link rel="stylesheet" type="text/css" href="gui_layout.css"/>
+     <!-- Set colors (this is in the main page so that I can do some magic string replacement from the application) -->
+     <style type="text/css">
+         
+         /* At some point, I'm also going to allow modifying the font families, but not right now. */
+        
+        body {
+           font-family: Georgia,Times,Times New Roman,serif;
+           background-color: #2C3538;
+           background-color: %WINDOW_COLOR%;
+           color: #A1A1A1;
+           color: %WINDOW_TEXT_COLOR%;
+        }
+        
+        h1,h2,h3,h4,h5,h6 {
+            font-family: Helvetica Neue,Helvetica,Arial,sans-serif;
+        }
+        
+        /* CSS System Colors don't seem to do anything, they're initialized to some default value
+         * which nw doesn't match to the system, so I have to set these programmatically as replacement strings */
+        
+        div#toolbar {
+           background-color: #3A3A3A;
+           background-color: %BUTTON_FACE_COLOR%;
+        }
+        
+        body.fullscreen div#toolbar {
+           background-color: #2C3538;
+           background-color: %WINDOW_COLOR%;
+        }
+        
+        button {
+          background-color: %BUTTON_FACE_COLOR%; 
+          border-color: %BUTTON_FACE_COLOR%;
+        }       
+        
+        button:hover {
+          border-color: %BUTTON_SHADOW_COLOR%;
+        }
+        
+        button.active, button.medium-editor-button-active {
+          border-color: %BUTTON_SHADOW_COLOR%;
+        }
+        
+        
+        .medium-editor-toolbar {
+          
+           background-color: %BUTTON_FACE_COLOR%;
+          
+        }
+        
+        .medium-editor-toolbar li button {
+          background-color: %BUTTON_FACE_COLOR%; 
+          color: %BUTTON_TEXT_COLOR%;
+          border-color: %BUTTON_FACE_COLOR%;
+        }
+        
+        .medium-editor-toolbar li span.medium-editor-separator {
+          color: %BUTTON_TEXT_COLOR%;
+          border-color: %BUTTON_FACE_COLOR%;
+        }
+        
+        .medium-editor-toolbar li .medium-editor-button-active {
+            background-color: %BUTTON_SHADOW_COLOR%;
+            border-color: %BUTTON_SHADOW_COLOR%;
+        }
+        
+        .medium-editor-toolbar-form {
+          background-color: %BUTTON_FACE_COLOR%; 
+          color: %BUTTON_TEXT_COLOR%;
+        }
+        
+        .medium-editor-toolbar-form .medium-editor-toolbar-input {
+            background-color: %BUTTON_FACE_COLOR%; 
+            color: %BUTTON_TEXT_COLOR%;
+        }
+        
+        .medium-editor-toolbar-form a {
+            color: %BUTTON_TEXT_COLOR%;
+        }
+        
+        .medium-editor-toolbar-anchor-preview {
+          background-color: %BUTTON_FACE_COLOR%; 
+          color: %BUTTON_TEXT_COLOR%;
+        }
+        
+        @media print {
+            body {
+               background-color: white;
+               color: black;
+            }
+        }
+        
+     </style>
+     <!-- medium editor script -->
+     <script src="bower_components/medium-editor/dist/js/medium-editor.js"></script>
+     <!-- marked markdown converter script -->
+     <script src="bower_components/marked/marked.min.js"></script>
+     <!-- to-markdown markdown converter script (because marked doesn't convert to markdown and to-markdown doesn't convert to HTML) -->
+     <script src="bower_components/to-markdown/dist/to-markdown.js"></script>
+     <!-- my own helper script stuff -->
+     <script src="gui_editor.js"></script>
+     <script>
+         var simplepad = {
+             HTML_FORMAT: 'html',
+             MARKDOWN_FORMAT: 'markdown'
+         };
+     </script>
+     <script>
+         // Must be in JSON format. If not, then this particular
+         // script element won't parse, but everything else should
+         // be fine, so we end up with an empty editor.
+         simplepad.input = %FILE_CONTENT%;
+         simplepad.inputFormat = %FILE_FORMAT%;
+     </script>
+   </head>
+   <body>
+      <div id="toolbar">
+      </div>
+      <div id="content" class="simplepadeditor"></div>
+      <script>
+          var editor = createSimplepadEditor("content");
+
+          // initialize the rest of the interaction object.
+          simplepad.getContents = function(format) {
+              // TODO: How to convert back to HTML, looks like Marked
+              // doesn't do that...
+              var result = editor.serialize().content.value;
+              switch (format) {
+                  case simplepad.HTML_FORMAT:
+                     break;
+                  case simplepad.MARKDOWN_FORMAT:
+                     result = toMarkdown(result);
+                     break;
+                  default:
+                     throw new Error('Invalid output format: ' + format);
+              }
+              return {
+          // Allows a sanity check on saving, so we know whether the
+          // whole contents of the thing got saved.
+                  length: result.length,
+                  contents: result
+              }
+          };
+          
+          simplepad.overwriteSelection = function(text) {
+              var sel = editor.exportSelection();
+              editor.cleanPaste(text);
+              sel.end = sel.start + text.length;
+              editor.importSelection(sel);
+          };
+          
+          simplepad.turnOnFullscreen = function() {
+             simplepad.fullscreen = true;
+             document.body.classList.add("fullscreen");
+             // make sure toolbar does not get state changes when selection is empty,
+             // otherwise it remains visible most of the time.
+             editor.getExtensionByName('toolbar').updateOnEmptySelection = false;
+             // update the toolbar based on current selection...
+             editor.checkSelection();
+          };
+          
+          simplepad.turnOffFullscreen = function() {
+             simplepad.fullscreen = false;
+             document.body.classList.remove("fullscreen");
+             // make sure the toolbar gets state changes when selection is empty
+             editor.getExtensionByName('toolbar').updateOnEmptySelection = true;
+             // show the toolbar...
+             editor.getExtensionByName('toolbar').showToolbar();
+          };
+          
+          
+          
+          ;(function() {
+              var contents = simplepad.input  || "<p></p>";
+              switch (simplepad.inputFormat) {
+                  case simplepad.HTML_FORMAT:
+                     break;
+                  case simplepad.MARKDOWN_FORMAT:
+                     contents = marked(contents);
+                     break;
+                  default:
+                     throw new Error('Invalid input format: ' + simplepad.inputFormat);
+              }
+              editor.setContent(contents);
+          })();
+
+              
+          
+      </script>
+   </body>
+</html>

@@ -1,0 +1,168 @@
+object MainForm: TMainForm
+  Left = 340
+  Height = 441
+  Top = 175
+  Width = 707
+  Caption = 'MainForm'
+  ClientHeight = 439
+  ClientWidth = 707
+  KeyPreview = True
+  Menu = MainFormMenu
+  OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
+  OnKeyUp = FormKeyUp
+  OnWindowStateChange = FormWindowStateChange
+  LCLVersion = '1.2.6.0'
+  object DocumentTabs: TPageControl
+    Left = 0
+    Height = 402
+    Top = 0
+    Width = 707
+    Align = alClient
+    TabOrder = 0
+    OnCloseTabClicked = DocumentTabsCloseTabClicked
+    Options = [nboShowCloseButtons]
+  end
+  object FindReplacePanel: TPanel
+    AnchorSideBottom.Side = asrBottom
+    Left = 0
+    Height = 37
+    Top = 402
+    Width = 707
+    Align = alBottom
+    ClientHeight = 37
+    ClientWidth = 707
+    TabOrder = 1
+    Visible = False
+    object FindLabel: TLabel
+      AnchorSideLeft.Control = FindReplacePanel
+      AnchorSideTop.Control = FindReplacePanel
+      AnchorSideBottom.Control = FindEdit
+      AnchorSideBottom.Side = asrBottom
+      Left = 6
+      Height = 26
+      Top = 6
+      Width = 26
+      Anchors = [akTop, akLeft, akBottom]
+      BorderSpacing.Left = 5
+      BorderSpacing.Top = 5
+      Caption = 'Find'
+      Layout = tlCenter
+      ParentColor = False
+    end
+    object FindEdit: TEdit
+      AnchorSideLeft.Control = FindLabel
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = FindReplacePanel
+      Left = 37
+      Height = 26
+      Top = 6
+      Width = 100
+      BorderSpacing.Left = 5
+      BorderSpacing.Top = 5
+      BorderSpacing.Bottom = 5
+      OnKeyUp = FindEditKeyUp
+      TabOrder = 0
+    end
+    object ReplaceEdit: TEdit
+      AnchorSideLeft.Control = ReplaceCheckbox
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = FindReplacePanel
+      Left = 218
+      Height = 26
+      Top = 6
+      Width = 1
+      BorderSpacing.Left = 5
+      BorderSpacing.Top = 5
+      BorderSpacing.Bottom = 5
+      Enabled = False
+      OnKeyUp = ReplaceEditKeyUp
+      TabOrder = 2
+    end
+    object ReplaceCheckbox: TCheckBox
+      AnchorSideLeft.Control = FindEdit
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = FindReplacePanel
+      AnchorSideBottom.Control = ReplaceEdit
+      AnchorSideBottom.Side = asrBottom
+      Left = 142
+      Height = 26
+      Top = 6
+      Width = 71
+      Anchors = [akTop, akLeft, akBottom]
+      BorderSpacing.Left = 5
+      BorderSpacing.Top = 5
+      Caption = 'Replace'
+      OnClick = ReplaceCheckboxClick
+      TabOrder = 1
+    end
+    object FindNextButton: TButton
+      AnchorSideLeft.Control = ReplaceEdit
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = FindReplacePanel
+      AnchorSideBottom.Control = ReplaceEdit
+      AnchorSideBottom.Side = asrBottom
+      Left = 224
+      Height = 26
+      Top = 6
+      Width = 75
+      Anchors = [akTop, akLeft, akBottom]
+      BorderSpacing.Left = 5
+      BorderSpacing.Top = 5
+      Caption = 'Next...'
+      TabOrder = 3
+    end
+    object FindPreviousButton: TButton
+      AnchorSideLeft.Control = FindNextButton
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = FindReplacePanel
+      AnchorSideBottom.Control = FindNextButton
+      AnchorSideBottom.Side = asrBottom
+      Left = 304
+      Height = 26
+      Top = 6
+      Width = 75
+      Anchors = [akTop, akLeft, akBottom]
+      BorderSpacing.Left = 5
+      BorderSpacing.Top = 5
+      Caption = 'Previous...'
+      TabOrder = 4
+    end
+    object CloseFindReplacePanelButton: TSpeedButton
+      AnchorSideTop.Control = FindReplacePanel
+      AnchorSideRight.Control = FindReplacePanel
+      AnchorSideRight.Side = asrBottom
+      AnchorSideBottom.Control = FindReplacePanel
+      AnchorSideBottom.Side = asrBottom
+      Left = 676
+      Height = 25
+      Top = 6
+      Width = 25
+      Anchors = [akTop, akRight, akBottom]
+      BorderSpacing.Top = 5
+      BorderSpacing.Right = 5
+      BorderSpacing.Bottom = 5
+      Caption = 'X'
+      OnClick = CloseFindReplacePanelButtonClick
+    end
+  end
+  object MainFormActions: TActionList
+    left = 478
+    top = 30
+  end
+  object MainFormMenu: TMainMenu
+    left = 304
+    top = 16
+  end
+  object DocumentOpenDialog: TOpenDialog
+    left = 120
+    top = 16
+  end
+  object DocumentSaveAsDialog: TSaveDialog
+    Filter = 'All Files|*|RTF Files|*.rtf'
+    Options = [ofOverwritePrompt, ofEnableSizing, ofViewDetail]
+    left = 123
+    top = 85
+  end
+end

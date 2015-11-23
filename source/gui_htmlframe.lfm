@@ -1,0 +1,15 @@
+inherited HTMLFrame: THTMLFrame
+  object HTMLEditor: TFramedWebkitComposer[0]
+    Left = 0
+    Height = 399
+    Top = 0
+    Width = 519
+    Align = alClient
+    TabOrder = 0
+    OnLoaded = HTMLEditorLoaded
+    OnUserChangeContent = HTMLEditorUserChangeContent
+    OnStatusTextChange = HTMLEditorStatusTextChange
+    OnLoadError = HTMLEditorLoadError
+    Editable = False
+  end
+end

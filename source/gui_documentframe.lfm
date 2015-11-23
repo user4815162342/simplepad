@@ -1,0 +1,9 @@
+object DocumentFrame: TDocumentFrame
+  Left = 0
+  Height = 399
+  Top = 0
+  Width = 519
+  TabOrder = 0
+  DesignLeft = 416
+  DesignTop = 175
+end
