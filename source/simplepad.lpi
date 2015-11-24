@@ -29,8 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="manual.md"/>
-        <WorkingDirectory Value="/home/neil/projects/stew/cli"/>
+        <CommandLineParams Value="--lazarus"/>
       </local>
     </RunParams>
     <RequiredPackages Count="2">

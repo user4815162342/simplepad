@@ -6,10 +6,17 @@ inherited HTMLFrame: THTMLFrame
     Width = 519
     Align = alClient
     TabOrder = 0
+    PopupMenu = HTMLMenu
     OnLoaded = HTMLEditorLoaded
     OnUserChangeContent = HTMLEditorUserChangeContent
     OnStatusTextChange = HTMLEditorStatusTextChange
     OnLoadError = HTMLEditorLoadError
+    OnDownloadRequest = HTMLEditorDownloadRequest
+    OnLinkActivation = HTMLEditorLinkActivation
     Editable = False
+  end
+  object HTMLMenu: TPopupMenu[1]
+    left = 370
+    top = 161
   end
 end

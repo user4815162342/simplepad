@@ -18,17 +18,35 @@ TODO:
       (there is a jquery plugin linked here that might just work for us).
       (However, this really requires running your own server if we're going to
        distribute the app. Maybe, we need to specify the server in configuration?)
+  - I don't need to have the spellcheck stuff underlined, I hate seeing that anyway.
+    I'd rather just have a spell-check/grammar-check wizard, which could then easily
+    be done with a command line program that returns data in a certain format to let
+    me find the location.
 - Grammar Check? -- http://www.afterthedeadline.com/api.slp
 - make sure actions get enabled/disabled and checked according to various statuses.
   I might be able to use TAction subclasses with appropriate methods instead of Events
   to handle updating and executing, and just call public methods on the form.
-2) Need a word count status bar (that updates to just the selection word count when that's changed)
-3) Problems printing: it's cutting off the page in the middle of text.
+2) Additional tags to support at some point.
+  Some of these might have plugins available:
+  - hr
+  - dl/dt/dd
+  - pre: Already partially supported, but I can't do line breaks within.
+  - code (inline preformatted, but it should also be used to wrap around code in a pre-tag)
+  - table/tr/th/td (existing plugins doesn't work. In testing, it shows up with
+    a grid that lets me select number rows/columns, and the table itself has buttons
+    which allow me to insert and delete. However, this doesn't show up in the program.
+    I need buttons that will allow me to insert tables, rows, columns, and delete rows and columns.
+  - img (existing plugins don't work. All it apparently does is turn text into an image tag,
+    which isn't useful. I should be able to make use of the link editor button to
+    specify a source, maybe other attributes, but it's going to get complex. This might
+    be better done with a native dialog).
+3) Need a word count status bar (that updates to just the selection word count when that's changed)
+4) Problems printing: it's cutting off the page in the middle of text.
 I can't really test this outside of GTK Webkit, because everything else
 seems to work fine...Maybe there's some standard print media css used
 in other browsers that isn't loaded in automatically? That would require
 digging through firefox or chrome source code.
-4) Need to keep the window size and shape between sessions.
+5) Need to keep the window size, state and shape between sessions.
 
 }
 
@@ -108,6 +126,7 @@ type
     procedure ReplaceCheckboxClick(Sender: TObject);
     procedure ReplaceEditKeyUp(Sender: TObject; var Key: Word;
       {%H-}Shift: TShiftState);
+    procedure RevealTagsAction(Sender: TObject);
     procedure TestOfTheDayAction(Sender: TObject);
     procedure UpdateCheckGrammarAction(Sender: TAction; var aEnabled: Boolean;
       var {%H-}aChecked: Boolean; var {%H-}aVisible: Boolean);
@@ -139,6 +158,7 @@ type
     fIPCClient: TSimpleIPCClient;
     fOpenAfterLoad: TOpenAfterLoad;
     fFullscreen: Boolean;
+    fRevealTags: Boolean;
     fOriginalState: TWindowState;
     procedure InitializeIPCServer;
     procedure InitializeIPCClient;
@@ -156,12 +176,15 @@ type
     function GetCurrentFrame: TDocumentFrame;
     function HasFrame: Boolean;
     procedure ToggleFullscreen;
+    procedure ToggleRevealTags;
     procedure ShowMenu;
     procedure HideMenu;
     procedure ShowTabs;
     procedure HideTabs;
     procedure MakeDocumentsNotFullscreen;
     procedure MakeDocumentsFullscreen;
+    procedure MakeDocumentsNotRevealTags;
+    procedure MakeDocumentsRevealTags;
     procedure NotImplemented(aFunction: String);
   public
     { public declarations }
@@ -322,6 +345,7 @@ var
   i: Integer;
 begin
   fFullscreen:=false;
+  fRevealTags := false;
 
 
   InitializeIPCClient;
@@ -501,6 +525,8 @@ procedure TMainForm.DocumentFrameLoaded(Sender: TObject);
 begin
   if fFullscreen then
      (Sender as TDocumentFrame).MakeFullscreen;
+  if fRevealTags then
+     (Sender as TDocumentFrame).MakeRevealTags;
 end;
 
 procedure TMainForm.DocumentTabsCloseTabClicked(Sender: TObject);
@@ -759,6 +785,11 @@ begin
   end;
 end;
 
+procedure TMainForm.RevealTagsAction(Sender: TObject);
+begin
+  ToggleRevealTags;
+end;
+
 procedure TMainForm.TestOfTheDayAction(Sender: TObject);
 begin
   GetCurrentFrame.TestOfTheDay;
@@ -1007,6 +1038,7 @@ begin
   //RegisterAction('IncreaseIndentAction','Increase Indent','Increase left indent of current paragraph',@IncreaseIndentAction,@UpdateListAction);
   //RegisterAction('DecreaseIndentAction','Decrease Indent','Decrease left indent of current paragraph',@DecreaseIndentAction,@UpdateListAction);
   RegisterAction('FullscreenAction','&Fullscreen','Toggle fullscreen display',@FullscreenAction);
+  RegisterAction('RevealTagsAction','&Reveal Tags','Toggle display of tag hints for better understanding of formats.',@RevealTagsAction);
   RegisterAction('CheckSpellingAction','&Spelling','Check spelling of document',@CheckSpellingAction,@UpdateCheckSpellingAction);
   RegisterAction('CheckGrammarAction','&Grammar','Run grammar check on document text',@CheckGrammarAction,@UpdateCheckGrammarAction);
   RegisterAction('AboutAction','&About','Show information about this application',@ExecuteAboutAction);
@@ -1124,6 +1156,7 @@ begin
   //AddItem('DecreaseIndentAction');
   NewMainMenu('&Tools');
   AddItem('FullscreenAction');
+  AddItem('RevealTagsAction');
   lMenu.AddSeparator;
   AddItem('CheckSpellingAction');
   AddItem('CheckGrammarAction');
@@ -1345,6 +1378,21 @@ begin
 
 end;
 
+procedure TMainForm.ToggleRevealTags;
+begin
+  if fRevealTags then
+  begin
+    fRevealTags := false;
+    MakeDocumentsNotRevealTags;
+  end
+  else
+  begin
+    fRevealTags := true;
+    MakeDocumentsRevealTags;
+  end;
+
+end;
+
 procedure TMainForm.ShowMenu;
 begin
   Menu := MainFormMenu;
@@ -1385,6 +1433,26 @@ begin
     GetFrame(i).MakeFullscreen;
   end;
 
+end;
+
+procedure TMainForm.MakeDocumentsNotRevealTags;
+var
+  i: Integer;
+begin
+  for i := 0 to DocumentTabs.PageCount - 1 do
+  begin
+    GetFrame(i).MakeNotRevealTags;
+  end;
+end;
+
+procedure TMainForm.MakeDocumentsRevealTags;
+var
+  i: Integer;
+begin
+  for i := 0 to DocumentTabs.PageCount - 1 do
+  begin
+    GetFrame(i).MakeRevealTags;
+  end;
 end;
 
 procedure TMainForm.NotImplemented(aFunction: String);

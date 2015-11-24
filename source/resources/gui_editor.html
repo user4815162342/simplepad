@@ -99,6 +99,8 @@
         }
         
      </style>
+     <!-- Used for displaying indicators for the various tags -->
+     <link rel="stylesheet" type="text/css" href="gui_reveal_tags.css"/>
      <!-- medium editor script -->
      <script src="bower_components/medium-editor/dist/js/medium-editor.js"></script>
      <!-- marked markdown converter script -->
@@ -174,6 +176,15 @@
              editor.getExtensionByName('toolbar').updateOnEmptySelection = true;
              // show the toolbar...
              editor.getExtensionByName('toolbar').showToolbar();
+          };
+          
+          simplepad.turnOnRevealTags = function() {
+             document.body.classList.add("reveal");
+          };
+          
+          simplepad.turnOffRevealTags = function() {
+              document.body.classList.remove("reveal");
+
           };
           
           

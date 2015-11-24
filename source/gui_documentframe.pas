@@ -76,6 +76,8 @@ type
 
     procedure MakeNotFullscreen; virtual;
     procedure MakeFullscreen; virtual;
+    procedure MakeRevealTags; virtual;
+    procedure MakeNotRevealTags; virtual;
 
     procedure Print; virtual; abstract;
 
@@ -313,6 +315,16 @@ begin
 end;
 
 procedure TDocumentFrame.MakeFullscreen;
+begin
+
+end;
+
+procedure TDocumentFrame.MakeRevealTags;
+begin
+
+end;
+
+procedure TDocumentFrame.MakeNotRevealTags;
 begin
 
 end;

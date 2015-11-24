@@ -61,14 +61,22 @@ var createSimplepadEditor = (function() {
             },
             toolbar: {
                 buttons: [/*'undo','redo',*/
-                          'bold','italic','removeFormat',
-                          'h1','h2','h3','h4','quote',
+                          'bold','italic','subscript','superscript','removeFormat','anchor',
+                          'h1','h2','h3','h4','quote',{
+                              name: 'pre',
+                              contentDefault: '<b class="fa fa-code"></b>',
+                              classList: []
+                          },
                           'unorderedlist','orderedlist','indent','outdent'],
                 static: true,
                 updateOnEmptySelection: true,
                 align: "left",
                 relativeContainer: document.body
             },
+            anchorPreview: {
+                showWhenToolbarIsVisible: true
+            },
+            imageDragging: false,
             placeholder: false
         });
         editors[id] = editor;

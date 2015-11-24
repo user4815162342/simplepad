@@ -1,0 +1,102 @@
+
+/* TODO: It would be nice if this showed as a full-height block instead of just an indent. */
+body.reveal div.simplepadeditor *:before {
+  font-size: 8px;
+  vertical-align: top;
+  margin-right: 5px;
+  background-color: #3A3A3A;
+  color: #A3A3A3;
+}
+
+body.reveal div.simplepadeditor p:before {
+  content: 'P';
+}
+
+body.reveal div.simplepadeditor h1:before {
+  content: 'H1';
+}
+
+body.reveal div.simplepadeditor h2:before {
+  content: 'H2';
+}
+
+body.reveal div.simplepadeditor h3:before {
+  content: 'H3';
+}
+
+body.reveal div.simplepadeditor h4:before {
+  content: 'H4';
+}
+
+body.reveal div.simplepadeditor h5:before {
+  content: 'H5';
+}
+
+body.reveal div.simplepadeditor h6:before {
+  content: 'H6';
+}
+
+body.reveal div.simplepadeditor ol:before {
+  content: 'OL';
+}
+
+body.reveal div.simplepadeditor ul:before {
+  content: 'UL';
+}
+
+body.reveal div.simplepadeditor dl:before {
+  content: 'DL';
+}
+
+
+body.reveal div.simplepadeditor dt:before {
+  content: 'DT';
+}
+
+body.reveal div.simplepadeditor dd:before {
+  content: 'DD';
+}
+
+/* Do I need these? Considering I have other visual confirmation of this 
+div.simplepadeditor li:before {
+  content: 'LI';
+}*/
+
+/* This one also doesn't work */
+body.reveal div.simplepadeditor img:before {
+  content: 'IMG';
+}
+
+body.reveal div.simplepadeditor table:before {
+  content: 'TABLE';
+}
+
+body.reveal div.simplepadeditor tr:before {
+  content: 'TR';
+}
+
+body.reveal div.simplepadeditor th:before {
+  content: 'TH';
+}
+
+body.reveal div.simplepadeditor td:before {
+  content: 'TD';
+}
+
+body.reveal div.simplepadeditor pre:before {
+  content: 'PRE';
+}
+
+body.reveal div.simplepadeditor blockquote:before {
+  content: 'BQ';
+}
+
+/* Unfortunately, this won't work. I guess I'll leave it here for now, though. 
+ * I tried a few other things, but since br doesn't have "content", it doesn't
+ * get styled. The best way I can come up with is to do a br + * here and
+ * make sure it's always followed by a span, but that's not something I 
+ * even want to do. */
+body.reveal div.simplepadeditor br:before {
+  content: '\B6'; /* '¶';*/
+}
+

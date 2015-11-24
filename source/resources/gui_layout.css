@@ -109,6 +109,15 @@ div.simplepadeditor:focus {
   border-style: inset;
 }
 
+/* Have to override this one, because the defaults do some weird things that
+ * mess with my style */
+.medium-editor-toolbar li .medium-editor-action-pre {
+    font-family: initial;
+    font-size: initial;
+    font-weight: initial;
+    padding: initial;
+}
+
 .medium-editor-toolbar-form {
   border-radius: 2px;
 }

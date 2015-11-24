@@ -5,8 +5,8 @@ unit gui_htmlframe;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, 
-    gui_documentframe, LazWebkitCtrls, LazWebkitSettings, fpjson, jsonparser;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, Menus, 
+    gui_documentframe, LazWebkitCtrls, LazWebkitSettings, fpjson, jsonparser, LazWebkitDownload;
 
 type
 
@@ -35,6 +35,11 @@ type
 
   THTMLFrame = class(TDocumentFrame)
     HTMLEditor: TFramedWebkitComposer;
+    HTMLMenu: TPopupMenu;
+    procedure HTMLEditorDownloadRequest(Sender: TObject;
+      const Download: TWebkitDownloadRequest; var Accept: Boolean);
+    procedure HTMLEditorLinkActivation(Sender: TObject; URI: String;
+      var Accept: Boolean);
     procedure HTMLEditorLoaded(Sender: TObject);
     procedure HTMLEditorLoadError(Sender: TObject; const {%H-}FrameName, {%H-}URI,
       Error: String);
@@ -85,6 +90,8 @@ type
 
     procedure MakeFullscreen; override;
     procedure MakeNotFullscreen; override;
+    procedure MakeRevealTags; override;
+    procedure MakeNotRevealTags; override;
 
     procedure TestOfTheDay; override;
 
@@ -143,6 +150,18 @@ procedure THTMLFrame.HTMLEditorLoaded(Sender: TObject);
 begin
   DoLoaded;
 
+end;
+
+procedure THTMLFrame.HTMLEditorDownloadRequest(Sender: TObject;
+  const Download: TWebkitDownloadRequest; var Accept: Boolean);
+begin
+  Accept := false;
+end;
+
+procedure THTMLFrame.HTMLEditorLinkActivation(Sender: TObject; URI: String;
+  var Accept: Boolean);
+begin
+  Accept := false;
 end;
 
 procedure THTMLFrame.HTMLEditorUserChangeContent(Sender: TObject);
@@ -428,6 +447,16 @@ end;
 procedure THTMLFrame.MakeNotFullscreen;
 begin
   HTMLEditor.ExecuteScript('simplepad.turnOffFullscreen()');
+end;
+
+procedure THTMLFrame.MakeRevealTags;
+begin
+  HTMLEditor.ExecuteScript('simplepad.turnOnRevealTags()');
+end;
+
+procedure THTMLFrame.MakeNotRevealTags;
+begin
+  HTMLEditor.ExecuteScript('simplepad.turnOffRevealTags()');
 end;
 
 procedure THTMLFrame.TestOfTheDay;
