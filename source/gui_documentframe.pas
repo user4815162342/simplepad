@@ -24,7 +24,9 @@ type
     { private declarations }
     fFileName: TFilename;
     fFileTypeID: String;
+    fOnCaptionChanged: TNotifyEvent;
     FOnLoaded: TNotifyEvent;
+    fModified: boolean;
     class var fFrameRegistry: TDocumentFrameClassRegistry;
     class var fNameRegistry: TDocumentFrameNameRegistry;
     class var fDefaultID: String;
@@ -34,12 +36,14 @@ type
   protected
     procedure LoadText(aText: UTF8String; aEditorTypeID: UTF8String); virtual; abstract;
     function GetSaveText(aEditorTypeID: UTF8String): UTF8String; virtual; abstract;
-    procedure ClearModified; virtual; abstract;
+    procedure ClearModified; virtual;
     procedure DisplayLoadError(aText: String); virtual; abstract;
     procedure CreateNewDocument; virtual; abstract;
-    function GetIsModified: Boolean; virtual; abstract;
+    function GetIsModified: Boolean; virtual;
     procedure SetOnLoaded(AValue: TNotifyEvent);
+    procedure SetOnCaptionChanged(AValue: TNotifyEvent);
     procedure DoLoaded;
+    procedure SetCaption;
     class constructor Create;
     class destructor Destroy;
   public
@@ -51,6 +55,7 @@ type
     property FileName: TFilename read fFileName;
     property FileTypeID: String read fFileTypeID;
     property IsModified: Boolean read GetIsModified;
+    procedure SetModified; virtual;
     // regular editing actions
     function CanPaste: Boolean; virtual;
     function CanRedo: Boolean; virtual;
@@ -82,6 +87,7 @@ type
     procedure Print; virtual; abstract;
 
     property OnLoaded: TNotifyEvent read FOnLoaded write SetOnLoaded;
+    property OnCaptionChanged: TNotifyEvent read fOnCaptionChanged write SetOnCaptionChanged;
 
     procedure TestOfTheDay; virtual;
 
@@ -102,7 +108,7 @@ type
 implementation
 
 uses
-  ComCtrls, strutils;
+  strutils;
 
 {$R *.lfm}
 
@@ -125,6 +131,23 @@ begin
   result := fNameRegistry[aExtension];
 end;
 
+procedure TDocumentFrame.SetOnCaptionChanged(AValue: TNotifyEvent);
+begin
+  if fOnCaptionChanged=AValue then Exit;
+  fOnCaptionChanged:=AValue;
+end;
+
+procedure TDocumentFrame.ClearModified;
+begin
+  fModified := false;
+  SetCaption;
+end;
+
+function TDocumentFrame.GetIsModified: Boolean;
+begin
+  result := fModified;
+end;
+
 procedure TDocumentFrame.SetOnLoaded(AValue: TNotifyEvent);
 begin
   if FOnLoaded=AValue then Exit;
@@ -135,6 +158,24 @@ procedure TDocumentFrame.DoLoaded;
 begin
   if FOnLoaded <> nil then
      FOnLoaded(Self);
+end;
+
+procedure TDocumentFrame.SetCaption;
+var
+  lCaption: String;
+begin
+  if fFileName = '' then
+     lCaption := 'Untitled'
+  else
+     lCaption := ExtractFileNameOnly(fFileName);
+  if IsModified then
+     lCaption := lCaption + '*';
+  if Caption <> lCaption then
+  begin
+    Caption := lCaption;
+    if fOnCaptionChanged <> nil then
+      fOnCaptionChanged(Self);
+  end;
 end;
 
 class constructor TDocumentFrame.Create;
@@ -156,8 +197,7 @@ var
 begin
   fFileName := aFilename;
   fFileTypeID := aEditorTypeID;
-  if Parent is TTabSheet then
-     (Parent as TTabSheet).Caption := ExtractFileNameOnly(aFilename);
+  SetCaption;
   try
     lStream := TFileStream.Create(aFilename,fmOpenRead);
     try
@@ -185,8 +225,7 @@ procedure TDocumentFrame.New;
 begin
   fFileName := '';
   fFileTypeID:= '';
-  if Parent is TTabSheet then
-     (Parent as TTabSheet).Caption := 'Untitled';
+  SetCaption;
   CreateNewDocument;
   ClearModified;
 end;
@@ -211,16 +250,21 @@ begin
   lText := GetSaveText(aEditorTypeID);
   fFileName := aFilename;
   fFileTypeID := aEditorTypeID;
+  SetCaption;
   lStream := TFileStream.Create(aFilename,fmCreate);
   try
     lStream.Write(lText[1],Length(lText));
     ClearModified;
-    if Parent is TTabSheet then
-       (Parent as TTabSheet).Caption := ExtractFileNameOnly(aFilename);
   finally
     lStream.Free;
   end;
 
+end;
+
+procedure TDocumentFrame.SetModified;
+begin
+  fModified := true;
+  SetCaption;
 end;
 
 function TDocumentFrame.CanPaste: Boolean;

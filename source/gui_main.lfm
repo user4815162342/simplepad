@@ -22,6 +22,7 @@ object MainForm: TMainForm
     TabStop = False
     Align = alClient
     TabOrder = 0
+    OnChange = DocumentTabsChange
     OnCloseTabClicked = DocumentTabsCloseTabClicked
     Options = [nboShowCloseButtons]
   end

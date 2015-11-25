@@ -6,6 +6,10 @@ interface
 
 {
 TODO:
+0) Support FTM by using html-janitor or some other module to clean up HTML before
+loading and after saving. Make sure to check the values before and after cleaning
+against each other. If there are differences, then show a message that the document
+contains formatting which is not supported, and will be lost upon saving.
 1) Finish various actions.
 - Spell Check? -- http://webkitgtk.org/reference/webkitgtk/stable/WebKitSpellChecker.html
   - NOTE: I have the spellchecking turned on with a TWebkitSettings, but I don't
@@ -107,7 +111,9 @@ type
     FindReplacePanel: TPanel;
     CloseFindReplacePanelButton: TSpeedButton;
     procedure CloseFindReplacePanelButtonClick(Sender: TObject);
+    procedure DocumentCaptionChanged(Sender: TObject);
     procedure DocumentFrameLoaded(Sender: TObject);
+    procedure DocumentTabsChange(Sender: TObject);
     procedure DocumentTabsCloseTabClicked(Sender: TObject);
     procedure FindEditKeyUp(Sender: TObject; var Key: Word; {%H-}Shift: TShiftState);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -173,6 +179,7 @@ type
     function CanCloseTab(aTab: TTabSheet): Boolean;
     function GetFrame(index: Integer): TDocumentFrame;
     function GetFrame(aTab: TTabsheet): TDocumentFrame;
+    function GetTab(aFrame: TDocumentFrame): TTabSheet;
     function GetCurrentFrame: TDocumentFrame;
     function HasFrame: Boolean;
     procedure ToggleFullscreen;
@@ -181,6 +188,7 @@ type
     procedure HideMenu;
     procedure ShowTabs;
     procedure HideTabs;
+    procedure SetCaption;
     procedure MakeDocumentsNotFullscreen;
     procedure MakeDocumentsFullscreen;
     procedure MakeDocumentsNotRevealTags;
@@ -372,6 +380,7 @@ begin
   begin
     // we need to set up the user interface...
     fOpenAfterLoad := TOpenAfterLoad.Create(Self);
+    SetCaption;
     SetupDialogs;
     RegisterActions;
     AssignKeyboardShortcuts;
@@ -522,12 +531,23 @@ begin
   FindReplacePanel.Visible := false;
 end;
 
+procedure TMainForm.DocumentCaptionChanged(Sender: TObject);
+begin
+  GetTab(Sender as TDocumentFrame).Caption := (Sender as TDocumentFrame).Caption;
+  SetCaption;
+end;
+
 procedure TMainForm.DocumentFrameLoaded(Sender: TObject);
 begin
   if fFullscreen then
      (Sender as TDocumentFrame).MakeFullscreen;
   if fRevealTags then
      (Sender as TDocumentFrame).MakeRevealTags;
+end;
+
+procedure TMainForm.DocumentTabsChange(Sender: TObject);
+begin
+  SetCaption;
 end;
 
 procedure TMainForm.DocumentTabsCloseTabClicked(Sender: TObject);
@@ -1251,6 +1271,7 @@ begin
     result.Parent := lTab;
     result.Align := alClient;
     result.OnLoaded:=@DocumentFrameLoaded;
+    result.OnCaptionChanged:=@DocumentCaptionChanged;
     DocumentTabs.PageIndex := lTab.PageIndex;
 
 end;
@@ -1337,6 +1358,11 @@ begin
      result := nil;
 end;
 
+function TMainForm.GetTab(aFrame: TDocumentFrame): TTabSheet;
+begin
+  result := aFrame.Parent as TTabSheet;
+end;
+
 function TMainForm.GetCurrentFrame: TDocumentFrame;
 begin
   if HasFrame then
@@ -1412,6 +1438,16 @@ end;
 procedure TMainForm.HideTabs;
 begin
   DocumentTabs.ShowTabs := false;
+end;
+
+procedure TMainForm.SetCaption;
+var
+  lCaption: String;
+begin
+  lCaption := 'Simplepad';
+  if HasFrame then
+     lCaption := lCaption + ' - ' +GetCurrentFrame.Caption;
+  Caption := lCaption;
 end;
 
 procedure TMainForm.MakeDocumentsNotFullscreen;

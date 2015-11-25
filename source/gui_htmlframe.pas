@@ -48,7 +48,6 @@ type
     procedure HTMLEditorUserChangeContent(Sender: TObject);
   private
     { private declarations }
-    fModified: Boolean;
     fScriptResult: String;
     class var fFTMFileTypeID: String;
     class var fHTMLFileTypeID: String;
@@ -59,10 +58,8 @@ type
     procedure LoadDocument(aText: String; aFormat: TDocumentFormat);
     procedure CreateNewDocument; override;
     procedure DisplayLoadError(aText: String); override;
-    function GetIsModified: Boolean; override;
     procedure LoadText(aText: UTF8String; aEditorTypeID: UTF8String); override;
     function GetSaveText(aEditorTypeID: UTF8String): UTF8String; override;
-    procedure ClearModified; override;
     procedure ExecCommand(aCommand: String; aArgument: String);
     function EvaluateScriptExpression(aScript: String): TJSONData; overload;
     function GetEditorContents(aFormat: TDocumentFormat): TDocumentContents;
@@ -167,7 +164,7 @@ end;
 
 procedure THTMLFrame.HTMLEditorUserChangeContent(Sender: TObject);
 begin
-  fModified := true;
+  SetModified;
 
 end;
 
@@ -208,11 +205,6 @@ procedure THTMLFrame.DisplayLoadError(aText: String);
 begin
     ShowMessage('Error: ' + aText)
 
-end;
-
-function THTMLFrame.GetIsModified: Boolean;
-begin
-    result := fModified;
 end;
 
 procedure THTMLFrame.LoadText(aText: UTF8String; aEditorTypeID: UTF8String);
@@ -272,11 +264,6 @@ begin
      raise Exception.Create('Actual length of content (' + IntToStr(Length(lContents.Contents)) + ') does not match reported length (' + IntToStr(lContents.Length) + ').');
   result := lContents.Contents;
 
-end;
-
-procedure THTMLFrame.ClearModified;
-begin
-  fModified := false;
 end;
 
 procedure THTMLFrame.ExecCommand(aCommand: String; aArgument: String);
