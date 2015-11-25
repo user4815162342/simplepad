@@ -24,7 +24,7 @@ type
     need to come up with a better JavaScript tool, or find some other way to convert.
   }
 
-  TDocumentFormat = (dfHTML, dfMarkdown);
+  TDocumentFormat = (dfFormattedTextMarkup, dfHTML, dfMarkdown);
 
   TDocumentContents = record
     Length: Integer;
@@ -37,8 +37,8 @@ type
     HTMLEditor: TFramedWebkitComposer;
     HTMLMenu: TPopupMenu;
     procedure HTMLEditorDownloadRequest(Sender: TObject;
-      const Download: TWebkitDownloadRequest; var Accept: Boolean);
-    procedure HTMLEditorLinkActivation(Sender: TObject; URI: String;
+      const {%H-}Download: TWebkitDownloadRequest; var Accept: Boolean);
+    procedure HTMLEditorLinkActivation(Sender: TObject; {%H-}URI: String;
       var Accept: Boolean);
     procedure HTMLEditorLoaded(Sender: TObject);
     procedure HTMLEditorLoadError(Sender: TObject; const {%H-}FrameName, {%H-}URI,
@@ -50,6 +50,7 @@ type
     { private declarations }
     fModified: Boolean;
     fScriptResult: String;
+    class var fFTMFileTypeID: String;
     class var fHTMLFileTypeID: String;
     class var fMarkdownFileTypeID: String;
     class var fEditorHTML: String;
@@ -113,7 +114,7 @@ uses
 const
   ReturnResultCommand = 'return';
   EditorFormats: array[TDocumentFormat] of UTF8String =
-    ('simplepad.HTML_FORMAT','simplepad.MARKDOWN_FORMAT');
+    ('simplepad.FTM_FORMAT','simplepad.HTML_FORMAT','simplepad.MARKDOWN_FORMAT');
 
 {$R *.lfm}
 
@@ -226,6 +227,10 @@ begin
   begin
     lFormat := dfMarkdown;
   end
+  else if aEditorTypeID = fFTMFileTypeID then
+  begin
+    lFormat := dfFormattedTextMarkup;
+  end
   else
   begin
     raise Exception.Create('The HTML editor can''t convert documents from that format');
@@ -247,6 +252,11 @@ begin
   else if aEditorTypeID = fMarkdownFileTypeID then
   begin
     lFormat := dfHTML;
+
+  end
+  else if aEditorTypeID = fFTMFileTypeID then
+  begin
+    lFormat := dfFormattedTextMarkup;
 
   end
   else
@@ -329,7 +339,8 @@ var
   lStrings: TStringList;
   lEditorHTMLFile: String;
 begin
-  fHTMLFileTypeID := TDocumentFrame.RegisterEditor('HTML File','html',THTMLFrame,true);
+  fFTMFileTypeID := TDocumentFrame.RegisterEditor('Formatted Text Markup File','ftm',THTMLFrame,true);
+  fHTMLFileTypeID := TDocumentFrame.RegisterEditor('HTML File','html',THTMLFrame);
   fMarkdownFileTypeID := TDocumentFrame.RegisterEditor('Markdown File','md',THTMLFrame);
 
   fEditorBaseURI := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(FileUtil.ProgramDirectory) + 'resources');

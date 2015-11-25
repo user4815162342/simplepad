@@ -112,7 +112,8 @@
      <script>
          var simplepad = {
              HTML_FORMAT: 'html',
-             MARKDOWN_FORMAT: 'markdown'
+             MARKDOWN_FORMAT: 'markdown',
+             FTM_FORMAT: 'formatted text markup'
          };
      </script>
      <script>
@@ -137,6 +138,7 @@
               var result = editor.serialize().content.value;
               switch (format) {
                   case simplepad.HTML_FORMAT:
+                  case simplepad.FTM_FORMAT:
                      break;
                   case simplepad.MARKDOWN_FORMAT:
                      result = toMarkdown(result);
@@ -193,6 +195,7 @@
               var contents = simplepad.input  || "<p></p>";
               switch (simplepad.inputFormat) {
                   case simplepad.HTML_FORMAT:
+                  case simplepad.FTM_FORMAT:
                      break;
                   case simplepad.MARKDOWN_FORMAT:
                      contents = marked(contents);

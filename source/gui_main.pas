@@ -411,6 +411,7 @@ begin
 
 end;
 
+
 procedure TMainForm.FormWindowStateChange(Sender: TObject);
 begin
   {

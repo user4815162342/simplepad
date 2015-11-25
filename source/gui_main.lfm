@@ -19,6 +19,7 @@ object MainForm: TMainForm
     Height = 402
     Top = 0
     Width = 707
+    TabStop = False
     Align = alClient
     TabOrder = 0
     OnCloseTabClicked = DocumentTabsCloseTabClicked
