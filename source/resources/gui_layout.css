@@ -37,15 +37,22 @@ div.simplepadeditor:focus {
 
 /* TODO: Need borders on tables */
 div.simplepadeditor table {
-   border: 1px solid;
    border-collapse: collapse;
 }
 
 div.simplepadeditor table td,
 div.simplepadeditor table th {
-   border: 1px dotted;
    padding: 2px;
+   border: 1px dotted;
 }
+
+/* I can't put the border on the table itself, as it messes with
+ * the display when I add the 'table' prefix in reveal codes. So,
+ * since the editor puts this in automatically anyway, just do this. */
+div.simplepadeditor table tbody {
+   border: 1px solid;
+}
+
 
 
 /* Toolbar */

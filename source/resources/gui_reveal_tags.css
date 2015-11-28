@@ -57,7 +57,7 @@ body.reveal div.simplepadeditor dd:before {
   content: 'DD';
 }
 
-/* Do I need these? Considering I have other visual confirmation of this 
+/* I should already have visual confirmation of list items for now.
 div.simplepadeditor li:before {
   content: 'LI';
 }*/
@@ -67,14 +67,18 @@ body.reveal div.simplepadeditor img:before {
   content: 'IMG';
 }
 
+/* I want this to show up simply because of the possibility of empty tables */
 body.reveal div.simplepadeditor table:before {
   content: 'TABLE';
 }
 
+/* Although I technically have visual conformation of this, I need to
+ * show this in case, for some reason, I've got an empty TR */
 body.reveal div.simplepadeditor tr:before {
   content: 'TR';
 }
 
+/* I do need to differentiate between TH and TD, so I do need those */
 body.reveal div.simplepadeditor th:before {
   content: 'TH';
 }
@@ -89,6 +93,18 @@ body.reveal div.simplepadeditor pre:before {
 
 body.reveal div.simplepadeditor blockquote:before {
   content: 'BQ';
+}
+
+body.reveal div.simplepadeditor a,
+body.reveal div.simplepadeditor em,
+body.reveal div.simplepadeditor strong,
+body.reveal div.simplepadeditor code,
+body.reveal div.simplepadeditor sub,
+body.reveal div.simplepadeditor sup,
+body.reveal div.simplepadeditor i,
+body.reveal div.simplepadeditor b,
+body.reveal div.simplepadeditor span {
+   border: 1px dotted;
 }
 
 /* Unfortunately, this won't work. I guess I'll leave it here for now, though. 
