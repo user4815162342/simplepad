@@ -1,5 +1,7 @@
 <html>
    <head>
+       <!-- TODO: I *do* need to support pasting formatted text, as right now 
+            it's getting in the way that I have to reformat text that I paste -->
      <!-- toolbar button images -->
      <link rel="stylesheet" type="text/css" href="bower_components/font-awesome/css/font-awesome.css "/>
      <!-- medium-editor -->
@@ -107,7 +109,10 @@
      <script src="bower_components/marked/marked.min.js"></script>
      <!-- to-markdown markdown converter script (because marked doesn't convert to markdown and to-markdown doesn't convert to HTML) -->
      <script src="bower_components/to-markdown/dist/to-markdown.js"></script>
+     <!-- HTML Beautifier -->
+     <script src="bower_components/js-beautify/js/lib/beautify-html.js"></script>
      <!-- my own helper script stuff -->
+     <script src="sys_ftm.js"></script>
      <script src="gui_editor.js"></script>
      <script>
          var simplepad = {
@@ -138,7 +143,16 @@
               var result = editor.serialize().content.value;
               switch (format) {
                   case simplepad.HTML_FORMAT:
+                     break;
                   case simplepad.FTM_FORMAT:
+                     try {
+                        simplepadFTMValidate(result);
+                     } catch (e) {
+                         alert("The FTM produced by simplepad did not validate. The invalid document will still be saved. The message provided by the validator was: \n" + e.message);
+                     }
+                     result = html_beautify(result,{
+                         wrap_line_length: 80
+                     })
                      break;
                   case simplepad.MARKDOWN_FORMAT:
                      result = toMarkdown(result);
@@ -152,6 +166,29 @@
                   length: result.length,
                   contents: result
               }
+          };
+          
+          simplepad.setContents = function(input,format) {
+              
+              var contents = input  || "<p></p>";
+              switch (format) {
+                  case simplepad.HTML_FORMAT:
+                     break;
+                  case simplepad.FTM_FORMAT:
+                     try {
+                        simplepadFTMValidate(contents);
+                     } catch (e) {
+                         alert("This FTM document contains unsupported formatting. The message provided by the validator was: \n" + e.message);
+                         return;
+                     }
+                     break;
+                  case simplepad.MARKDOWN_FORMAT:
+                     contents = marked(contents);
+                     break;
+                  default:
+                     throw new Error('Invalid input format: ' + simplepad.inputFormat);
+              }
+              editor.setContent(contents);
           };
           
           simplepad.overwriteSelection = function(text) {
@@ -192,18 +229,7 @@
           
           
           ;(function() {
-              var contents = simplepad.input  || "<p></p>";
-              switch (simplepad.inputFormat) {
-                  case simplepad.HTML_FORMAT:
-                  case simplepad.FTM_FORMAT:
-                     break;
-                  case simplepad.MARKDOWN_FORMAT:
-                     contents = marked(contents);
-                     break;
-                  default:
-                     throw new Error('Invalid input format: ' + simplepad.inputFormat);
-              }
-              editor.setContent(contents);
+              simplepad.setContents(simplepad.input,simplepad.inputFormat);
           })();
 
               

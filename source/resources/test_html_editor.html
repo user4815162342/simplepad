@@ -15,7 +15,8 @@
 <div>
   <button onclick="executeScript('simplepad.turnOnFullscreen()')">Fullscreen</button>
   <button onclick="executeScript('simplepad.turnOffFullscreen()')">Not Fullscreen</button>
-  <button onclick="document.getElementById('output').innerHTML = evaluateScript('simplepad.getContents()')">Get Contents</button>
+  <button onclick="document.getElementById('output').value = evaluateScript('simplepad.getContents(\'formatted text markup\').contents')">Get Contents</button>
+  <button onclick="document.getElementById('editor').contentWindow.simplepad.setContents(document.getElementById('output').value,'formatted text markup')">Set FTM Contents</button>
 </div>
 <iframe id="editor" src="./gui_editor.html" width="500" height="500"></iframe>
 <textarea id="output" cols="80" rows="25"></textarea>

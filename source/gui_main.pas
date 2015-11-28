@@ -6,10 +6,6 @@ interface
 
 {
 TODO:
-0) Support FTM by using html-janitor or some other module to clean up HTML before
-loading and after saving. Make sure to check the values before and after cleaning
-against each other. If there are differences, then show a message that the document
-contains formatting which is not supported, and will be lost upon saving.
 1) Finish various actions.
 - Spell Check? -- http://webkitgtk.org/reference/webkitgtk/stable/WebKitSpellChecker.html
   - NOTE: I have the spellchecking turned on with a TWebkitSettings, but I don't
@@ -392,7 +388,7 @@ begin
     if (ParamStr(i) = '--lazarus') then
     begin
       // This is code to be called if this is running from lazarus
-      OpenFile(ExpandFileNameUTF8('../test/test.html'));
+      OpenFile(ExpandFileNameUTF8('../test/test.ftm'));
     end
     else
     begin

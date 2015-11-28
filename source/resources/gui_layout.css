@@ -35,6 +35,18 @@ div.simplepadeditor:focus {
    outline: none;
 }
 
+/* TODO: Need borders on tables */
+div.simplepadeditor table {
+   border: 1px solid;
+   border-collapse: collapse;
+}
+
+div.simplepadeditor table td,
+div.simplepadeditor table th {
+   border: 1px dotted;
+   padding: 2px;
+}
+
 
 /* Toolbar */
 /* NOTE: Taken from the medium editor 'default' skin, to make it look nicer */
