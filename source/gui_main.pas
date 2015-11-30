@@ -52,7 +52,8 @@ digging through firefox or chrome source code.
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
-  ActnList, Menus, ExtCtrls, StdCtrls, Buttons, simpleipc, gui_documentframe;
+  ActnList, Menus, ExtCtrls, StdCtrls, Buttons, simpleipc, gui_documentframe,
+  sys_types;
 
 type
 
@@ -60,8 +61,6 @@ type
   //  Editors (RichMemo and TMemo) don't work very well, but lazWebkit does.
   //  I just have to be a bit more barebones about it. See that unit for
   //  more info on what needs to be done.
-
-  TStringArray = array of UTF8String;
 
   TUpdateActionEvent = procedure(Sender: TAction; var aEnabled: Boolean; var aChecked: Boolean; var aVisible: Boolean) of object;
 
@@ -83,10 +82,10 @@ type
 
   TNewDocumentAction = class(TAppAction)
   private
-    fID: String;
-    procedure SetID(AValue: String);
+    fFileType: String;
+    procedure SetFileType(AValue: String);
   public
-    property ID: String read fID write SetID;
+    property FileType: String read fFileType write SetFileType;
   end;
 
   TOpenAfterLoad = class;
@@ -124,7 +123,7 @@ type
     procedure RegisterAction(const aName: UTF8String;
       const aMenuCaption: UTF8String; const aFullCaption: UTF8String;
   aExecute: TNotifyEvent = nil; aUpdate: TUpdateActionEvent = nil);
-    procedure RegisterNewFileAction(const aID: String);
+    procedure RegisterNewFileAction(const aFileType: String);
     procedure ReplaceCheckboxClick(Sender: TObject);
     procedure ReplaceEditKeyUp(Sender: TObject; var Key: Word;
       {%H-}Shift: TShiftState);
@@ -194,7 +193,7 @@ type
     { public declarations }
     procedure OpenFile(aFileName: UTF8String); overload;
     procedure OpenFile(aFileName: UTF8String; aEditorType: TDocumentFrameClass;
-      aEditorTypeID: String);
+      aEditorFormatID: String);
     procedure NewFile(aEditorType: TDocumentFrameClass);
     procedure CloseCurrentTabAction(Sender: TObject);
     procedure ExecuteAboutAction(Sender: TObject);
@@ -257,7 +256,7 @@ const
 implementation
 
 uses
-  LCLType, LCLProc;
+  LCLType, LCLProc, LCLStrConsts;
 
 {$R *.lfm}
 
@@ -275,7 +274,7 @@ begin
        fMainForm.OpenFile(fFiles[i]);
   end
   else
-    fMainForm.NewFile(TDocumentFrame.FindEditorForID(TDocumentFrame.FindDefaultFileTypeID));
+    fMainForm.NewFile(TDocumentFrame.FindEditorForFileType(TDocumentFrame.FindDefaultFileType));
 end;
 
 constructor TOpenAfterLoad.Create(AOwner: TComponent);
@@ -302,10 +301,10 @@ end;
 
 { TNewDocumentAction }
 
-procedure TNewDocumentAction.SetID(AValue: String);
+procedure TNewDocumentAction.SetFileType(AValue: String);
 begin
-  if fID=AValue then Exit;
-  fID:=AValue;
+  if fFileType=AValue then Exit;
+  fFileType:=AValue;
 end;
 
 { TAppAction }
@@ -709,7 +708,11 @@ procedure TMainForm.NewFileAction(Sender: TObject);
 begin
   if Sender is TNewDocumentAction then
   begin
-    NewFile(TDocumentFrame.FindEditorForID((Sender as TNewDocumentAction).ID));
+    NewFile(TDocumentFrame.FindEditorForFiletype((Sender as TNewDocumentAction).FileType));
+  end
+  else
+  begin
+    NewFile(TDocumentFrame.FindEditorForFileType(TDocumentFrame.FindDefaultFileType));
   end;
 end;
 
@@ -740,8 +743,10 @@ end;
 
 procedure TMainForm.OpenFileAction(Sender: TObject);
 begin
-  // TODO: Make the current directory equal to the directory of the current
-  // tabbed file.
+  if HasFrame then
+  begin
+    DocumentOpenDialog.InitialDir := ExtractFileDir(GetCurrentFrame.FileName);
+  end;
   if DocumentOpenDialog.Execute then
   begin
     OpenFile(DocumentOpenDialog.FileName);
@@ -771,15 +776,15 @@ begin
 
 end;
 
-procedure TMainForm.RegisterNewFileAction(const aID: String);
+procedure TMainForm.RegisterNewFileAction(const aFileType: String);
 var
   lAction: TNewDocumentAction;
 begin
   lAction := TNewDocumentAction.Create(MainFormActions);
   lAction.ActionList := MainFormActions;
-  lAction.ID := aID;
-  lAction.Name := 'New' + aID + 'Action';
-  lAction.Caption := TDocumentFrame.FindFileTypeNameForID(aID);
+  lAction.FileType := aFileType;
+  lAction.Name := 'New' + StringReplace(aFileType,' ','_',[rfReplaceAll]) + 'Action';
+  lAction.Caption := 'New ' + aFileType;
   lAction.Hint := 'Create New ' + lAction.Caption;
   lAction.OnExecute:=@NewFileAction;
 end;
@@ -962,8 +967,7 @@ end;
 
 procedure TMainForm.SetupDialogs;
 begin
-  DocumentSaveAsDialog.Filter := TDocumentFrame.EditorDialogFilters;
-  DocumentOpenDialog.Filter := TDocumentFrame.EditorDialogFilters;
+  DocumentOpenDialog.Filter := TDocumentFrame.EditorDialogFilters('');
 end;
 
 procedure TMainForm.OpenFile(aFileName: UTF8String);
@@ -979,8 +983,8 @@ begin
   begin
     if fOpenAfterLoad.Loaded then
     begin
-      lEditorID := TDocumentFrame.FindFileTypeIDForFile(aFileName);
-      lFrameClass := TDocumentFrame.FindEditorForID(lEditorID);
+      lEditorID := TDocumentFrame.FindFormatIDForFile(aFileName);
+      lFrameClass := TDocumentFrame.FindEditorForFormatID(lEditorID);
        OpenFile(aFileName,lFrameClass,lEditorID)
     end
     else
@@ -990,7 +994,7 @@ begin
 end;
 
 procedure TMainForm.OpenFile(aFileName: UTF8String;
-  aEditorType: TDocumentFrameClass; aEditorTypeID: String);
+  aEditorType: TDocumentFrameClass; aEditorFormatID: String);
 var
   i: Integer;
   lTab: TTabSheet;
@@ -1008,7 +1012,21 @@ begin
     end;
   end;
 
-  CreateFrame(aEditorType).Load(aFileName,aEditorTypeID);
+  // now, check if the current tab is a blank, unedited file of the correct type,
+  // if it is, then we need to replace it. This will happen when we start up the
+  // editor and have a blank screen that we want to open the file into.
+  if HasFrame then
+  begin
+    lFrame := GetCurrentFrame;
+    if (lFrame is aEditorType) and
+       (lFrame.FileName = '') and
+       (not lFrame.IsModified) then
+    begin
+      lFrame.Load(aFileName,aEditorFormatID);
+    end;
+  end
+  else
+     CreateFrame(aEditorType).Load(aFileName,aEditorFormatID);
 end;
 
 procedure TMainForm.NewFile(aEditorType: TDocumentFrameClass);
@@ -1023,10 +1041,11 @@ var
 begin
   // I don't want to have to go through the gui interface to create
   // these actions in the action list editor, so I'm doing this by code...
-  for i := 0 to TDocumentFrame.FileTypeIDCount - 1 do
+  for i := 0 to TDocumentFrame.FileTypeCount - 1 do
   begin
     RegisterNewFileAction(TDocumentFrame.FileTypeIDS[i]);
   end;
+  RegisterAction('NewFileAction','&New','New file',@NewFileAction);
   RegisterAction('OpenFileAction','&Open','Open a file',@OpenFileAction);
   RegisterAction('SaveFileAction','&Save','Save the file',@SaveFileAction,@UpdateSaveFileAction);
   RegisterAction('SaveFileAsAction','Save &As...','Save the file under a new name',@SaveFileAsAction);
@@ -1128,12 +1147,17 @@ var
 
 begin
   NewMainMenu('&File');
-  NewSubMenu('New');
-  for i := 0 to TDocumentFrame.FileTypeIDCount - 1 do
+  if TDocumentFrame.FileTypeCount > 1 then
   begin
-    AddItem('New' + TDocumentFrame.FileTypeIDS[i] + 'Action');
-  end;
-  EndSubMenu;
+    NewSubMenu('New');
+    for i := 0 to TDocumentFrame.FileTypeCount - 1 do
+    begin
+      AddItem('New' + StringReplace(TDocumentFrame.FileTypeIDS[i],' ','_',[rfReplaceAll]) + 'Action');
+    end;
+    EndSubMenu;
+  end
+  else if TDocumentFrame.FileTypeCount > 0 then;
+    AddItem('NewFileAction');
   AddItem('OpenFileAction');
   lMenu.AddSeparator;
   AddItem('SaveFileAction');
@@ -1225,9 +1249,8 @@ procedure TMainForm.AssignKeyboardShortcuts;
   end;
 
 begin
-  AssignShortCut('NewRTFFileAction',VK_N,[ssCtrl]);
-  AssignShortCut('NewTXTFileAction',VK_N,[ssCtrl,ssShift]);
   AssignShortCut('OpenFileAction',VK_O,[ssCtrl]);
+  AssignShortCut('NewFileAction',VK_N,[ssCtrl]);
   AssignShortCut('SaveFileAction',VK_S,[ssCtrl]);
   AssignShortCut('SaveAllAction',VK_S,[ssCtrl,ssShift]);
   AssignShortcut('PrintAction',VK_P,[ssCtrl]);
@@ -1291,11 +1314,41 @@ begin
 end;
 
 function TMainForm.SaveFrameAs(aFrame: TDocumentFrame): Boolean;
+var
+  lOriginalFileName: String;
 begin
   // TODO: What should be the default filename?
+  DocumentSaveAsDialog.Filter := TDocumentFrame.EditorDialogFilters(aFrame.FileFormatID);
+  lOriginalFileName := aFrame.FileName;
+  if lOriginalFileName <> '' then
+  begin
+      DocumentSaveAsDialog.FileName := aFrame.FileName;
+      DocumentSaveAsDialog.FilterIndex := TDocumentFrame.FindFormatFilterIndexForFile(aFrame.FileFormatID,aFrame.FileName) + 1;
+  end
+  else
+  begin
+      DocumentSaveAsDialog.FileName := IncludeTrailingPathDelimiter(ExtractFileDir(DocumentSaveAsDialog.FileName)) + 'Untitled.ftm';
+      DocumentSaveAsDialog.FilterIndex := 1;
+  end;
+
   if DocumentSaveAsDialog.Execute then
   begin
-    aFrame.SaveAs(DocumentSaveAsDialog.FileName,TDocumentFrame.FindFileTypeIDForFilterIndex(DocumentSaveAsDialog.FilterIndex,DocumentSaveAsDialog.FileName));
+    if ExtractFileExt(DocumentSaveAsDialog.FileName) = '' then
+    begin
+    // index is 1-based in the dialog...
+       DocumentSaveAsDialog.FileName := ChangeFileExt(DocumentSaveAsDialog.FileName,'.' + TDocumentFrame.FindExtensionForFormatFilterIndex(aFrame.GetFileType,DocumentSaveAsDialog.FilterIndex - 1));
+       if FileExists(DocumentSaveAsDialog.FileName) and
+          (MessageDlg(rsfdOverwriteFile,
+                         Format(rsfdFileAlreadyExists,[DocumentSaveAsDialog.FileName]),
+                         mtConfirmation,[mbOk,mbCancel],0) <> mrOk) then
+          begin
+            result := false;
+            Exit;
+          end;
+    end;
+    // save according to the format specified for the filename chosen, no
+    // matter what the filter says.
+    aFrame.SaveAs(DocumentSaveAsDialog.FileName,TDocumentFrame.FindFormatIDForFile(DocumentSaveAsDialog.FileName));
     result := true;
   end
   else
@@ -1311,7 +1364,7 @@ begin
   begin
      aTab.Free;
      if DocumentTabs.PageCount = 0 then
-        NewFile(TDocumentFrame.FindEditorForID(TDocumentFrame.FindDefaultFileTypeID));
+        NewFile(TDocumentFrame.FindEditorForFileType(TDocumentFrame.FindDefaultFileType));
   end;
 end;
 

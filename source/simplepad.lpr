@@ -8,7 +8,7 @@ uses
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
   Forms, gui_main, gui_documentframe,
-gui_htmlframe;
+gui_htmlframe, sys_types;
 
 {$R *.res}
 

@@ -40,7 +40,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="simplepad.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -70,6 +70,11 @@
         <ResourceBaseClass Value="Frame"/>
         <UnitName Value="gui_htmlframe"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="sys_types.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="sys_types"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

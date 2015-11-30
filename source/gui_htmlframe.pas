@@ -49,9 +49,9 @@ type
   private
     { private declarations }
     fScriptResult: String;
-    class var fFTMFileTypeID: String;
-    class var fHTMLFileTypeID: String;
-    class var fMarkdownFileTypeID: String;
+    class var fFTMFileFormatID: String;
+    class var fHTMLFileFormatID: String;
+    class var fMarkdownFileFormatID: String;
     class var fEditorHTML: String;
     class var fEditorBaseURI: String;
   protected
@@ -100,6 +100,8 @@ type
     procedure ClearTextStyles; override;
     procedure DecreaseListIndent; override;
     procedure IncreaseListIndent; override;
+
+    class function GetFileType: String; override;
 
   end;
 
@@ -211,15 +213,15 @@ procedure THTMLFrame.LoadText(aText: UTF8String; aEditorTypeID: UTF8String);
 var
   lFormat: TDocumentFormat;
 begin
-  if aEditorTypeID = fHTMLFileTypeID then
+  if aEditorTypeID = fHTMLFileFormatID then
   begin
       lFormat := dfHTML
   end
-  else if aEditorTypeID = fMarkdownFileTypeID then
+  else if aEditorTypeID = fMarkdownFileFormatID then
   begin
     lFormat := dfMarkdown;
   end
-  else if aEditorTypeID = fFTMFileTypeID then
+  else if aEditorTypeID = fFTMFileFormatID then
   begin
     lFormat := dfFormattedTextMarkup;
   end
@@ -237,16 +239,16 @@ var
   lFormat: TDocumentFormat;
 begin
   // Important: Don't put a semi-colon in here. It gets wrapped in parantheses.
-  if aEditorTypeID = fHTMLFileTypeID then
+  if aEditorTypeID = fHTMLFileFormatID then
   begin
       lFormat := dfHTML
   end
-  else if aEditorTypeID = fMarkdownFileTypeID then
+  else if aEditorTypeID = fMarkdownFileFormatID then
   begin
     lFormat := dfHTML;
 
   end
-  else if aEditorTypeID = fFTMFileTypeID then
+  else if aEditorTypeID = fFTMFileFormatID then
   begin
     lFormat := dfFormattedTextMarkup;
 
@@ -326,9 +328,9 @@ var
   lStrings: TStringList;
   lEditorHTMLFile: String;
 begin
-  fFTMFileTypeID := TDocumentFrame.RegisterEditor('Formatted Text Markup File','ftm',THTMLFrame,true);
-  fHTMLFileTypeID := TDocumentFrame.RegisterEditor('HTML File','html',THTMLFrame);
-  fMarkdownFileTypeID := TDocumentFrame.RegisterEditor('Markdown File','md',THTMLFrame);
+  fFTMFileFormatID := TDocumentFrame.RegisterFormatEditor('Formatted Text Markup File','ftm',THTMLFrame,true);
+  fHTMLFileFormatID := TDocumentFrame.RegisterFormatEditor('HTML File','html',THTMLFrame);
+  fMarkdownFileFormatID := TDocumentFrame.RegisterFormatEditor('Markdown File','md',THTMLFrame);
 
   fEditorBaseURI := IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(FileUtil.ProgramDirectory) + 'resources');
   lEditorHTMLFile := fEditorBaseURI + 'gui_editor.html';
@@ -528,6 +530,11 @@ end;
 procedure THTMLFrame.IncreaseListIndent;
 begin
   // TODO:
+end;
+
+class function THTMLFrame.GetFileType: String;
+begin
+  Result:='Formatted Text Document';
 end;
 
 end.
