@@ -6,7 +6,7 @@
     easy to build software around. FTM is based on a subset of HTML5, and therefore
     uses conventions that are familiar to all web designers, and should be very easily
     rendered in a web browser, and edited by those browsers which support editing.
-    </p>
+</p>
 <p>FTM is designed to be easily edited in a WYSIWYG editor. A WYSIWYG (What-you-see-is-what-you-get)
     editor displays text already formatted, and lets you edit it as it appears. However,
     it is also designed so that a human reader can easily see how the text is formatted,
@@ -104,6 +104,12 @@
     <ul>
         <ul>
             <li><i>(if the element is a child of <b>ol</b>)</i> <b>value = </b><i>integer</i></li>
+        </ul>
+        <li><b>ul, ol </b>(This is not actually valid HTML, however, in practice, a lot
+            of editors seem to output these for sublists. The editor in Simplepad
+            also does this automatically, with no way to avoid it, so I will support
+            it as long as it does so).</li>
+        <ul>
         </ul>
     </ul>
     <li><b>Text Content: </b>This is content which defines the actual content of the
