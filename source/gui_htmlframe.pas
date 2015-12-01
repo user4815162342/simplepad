@@ -10,20 +10,6 @@ uses
 
 type
 
-  {
-  TODO:
-  - Consider the possibility of use a "Simple" version of HTML instead of html,
-    wherein we're just dealing with the very basic tags. We're already doing this
-    to some extent by not including the header, but there might be other things
-    I need to do. This also requires 'cleaning up' the HTML when it's brought in,
-    to make sure it doesn't contain tags/attributes that we can't use.
-
-  TODO: Markdown support is not great. I've got two different tools being used for
-    converting to and converting from Markdown, which means that it's quite possible
-    for the markdown produced to have different appearance when pulled in. I either
-    need to come up with a better JavaScript tool, or find some other way to convert.
-  }
-
   TDocumentFormat = (dfFormattedTextMarkup, dfHTML, dfMarkdown);
 
   TDocumentContents = record
