@@ -1023,10 +1023,11 @@ begin
        (not lFrame.IsModified) then
     begin
       lFrame.Load(aFileName,aEditorFormatID);
+      Exit;
     end;
-  end
-  else
-     CreateFrame(aEditorType).Load(aFileName,aEditorFormatID);
+  end;
+
+  CreateFrame(aEditorType).Load(aFileName,aEditorFormatID);
 end;
 
 procedure TMainForm.NewFile(aEditorType: TDocumentFrameClass);
@@ -1318,7 +1319,7 @@ var
   lOriginalFileName: String;
 begin
   // TODO: What should be the default filename?
-  DocumentSaveAsDialog.Filter := TDocumentFrame.EditorDialogFilters(aFrame.FileFormatID);
+  DocumentSaveAsDialog.Filter := TDocumentFrame.EditorDialogFilters(aFrame.GetFileType);
   lOriginalFileName := aFrame.FileName;
   if lOriginalFileName <> '' then
   begin
