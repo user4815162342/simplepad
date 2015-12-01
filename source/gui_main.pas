@@ -245,13 +245,14 @@ type
 
 
 
+
 var
   MainForm: TMainForm;
 
 const
   IPCIdentifier = 'simplepad.townsedgetechnology.com';
   IPCOpenFileMessage = 1;
-  IPCBringToFront = 2;
+  IPCBringToFrontMessage = 2;
 
 implementation
 
@@ -259,6 +260,7 @@ uses
   LCLType, LCLProc, LCLStrConsts;
 
 {$R *.lfm}
+
 
 { TOpenAfterLoad }
 
@@ -358,7 +360,7 @@ begin
     //Send a message and then exit
     fIPCClient.Active := True;
     // bring the required one to the front (the open will be done in OpenFile).
-    fIPCClient.SendStringMessage(IPCBringToFront,'');
+    fIPCClient.SendStringMessage(IPCBringToFrontMessage,'');
     Application.ShowMainForm := False;
     Application.Terminate;
   end
@@ -382,17 +384,19 @@ begin
     BuildMenu;
   end;
 
-  for i := 1 to ParamCount do
+  i := 1;
+  while (i <= ParamCount) do
   begin
-    if (ParamStr(i) = '--lazarus') then
-    begin
-      // This is code to be called if this is running from lazarus
-      OpenFile(ExpandFileNameUTF8('../test/test.ftm'));
-    end
+    case ParamStrUTF8(i) of
+       '--lazarus':
+       begin
+          // This is code to be called if this is running from lazarus
+          OpenFile(ExpandFileNameUTF8('../test/test.ftm'));
+       end;
     else
-    begin
-      OpenFile(ExpandFileNameUTF8(ParamStr(i)));
+       OpenFile(ExpandFileNameUTF8(ParamStr(i)));
     end;
+    inc(i);
   end;
 
 
@@ -681,7 +685,7 @@ begin
   case fIPCServer.MsgType of
      IPCOpenFileMessage:
        OpenFile(fIPCServer.StringMessage);
-     IPCBringToFront:
+     IPCBringToFrontMessage:
        BringToFront;
   else
     ShowMessage('Invalid IPC Message Received: ' + IntToStr(fIPCServer.MsgType));
@@ -983,8 +987,8 @@ begin
   begin
     if fOpenAfterLoad.Loaded then
     begin
-      lEditorID := TDocumentFrame.FindFormatIDForFile(aFileName);
-      lFrameClass := TDocumentFrame.FindEditorForFormatID(lEditorID);
+       lEditorID := TDocumentFrame.FindFormatIDForFile(aFileName);
+       lFrameClass := TDocumentFrame.FindEditorForFormatID(lEditorID);
        OpenFile(aFileName,lFrameClass,lEditorID)
     end
     else
@@ -1034,7 +1038,6 @@ procedure TMainForm.NewFile(aEditorType: TDocumentFrameClass);
 begin
   CreateFrame(aEditorType).New;
 end;
-
 
 procedure TMainForm.RegisterActions;
 var

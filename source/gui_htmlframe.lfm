@@ -13,7 +13,6 @@ inherited HTMLFrame: THTMLFrame
     OnLoadError = HTMLEditorLoadError
     OnDownloadRequest = HTMLEditorDownloadRequest
     OnLinkActivation = HTMLEditorLinkActivation
-    Editable = False
   end
   object HTMLMenu: TPopupMenu[1]
     left = 370

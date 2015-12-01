@@ -52,10 +52,10 @@ type
     class destructor Destroy;
   public
     { public declarations }
-    procedure Load(aFilename: UTF8String; aEditorTypeID: UTF8String);
+    procedure Load(aFilename: UTF8String; aFormatID: UTF8String);
     procedure New;
     procedure Save;
-    procedure SaveAs(aFilename: UTF8String; aEditorTypeID: UTF8String);
+    procedure SaveAs(aFilename: UTF8String; aFormatID: UTF8String);
     property FileName: TFilename read fFileName;
     property FileFormatID: String read fFileFormatID;
     property IsModified: Boolean read GetIsModified;
@@ -242,13 +242,13 @@ begin
   FreeAndNil(fFileTypeDefaultFormatRegistry);
 end;
 
-procedure TDocumentFrame.Load(aFilename: UTF8String; aEditorTypeID: UTF8String);
+procedure TDocumentFrame.Load(aFilename: UTF8String; aFormatID: UTF8String);
 var
   lStream: TFileStream;
   lString: TStringStream;
 begin
   fFileName := aFilename;
-  fFileFormatID := aEditorTypeID;
+  fFileFormatID := aFormatID;
   SetCaption;
   try
     lStream := TFileStream.Create(aFilename,fmOpenRead);
@@ -256,7 +256,7 @@ begin
       lString := TStringStream.Create('');
       try
         lString.CopyFrom(lStream,0);
-        LoadText(lString.DataString,aEditorTypeID);
+        LoadText(lString.DataString,aFormatID);
         ClearModified;
       finally
         lString.Free;
@@ -290,7 +290,7 @@ begin
   SaveAs(fFileName,fFileFormatID);
 end;
 
-procedure TDocumentFrame.SaveAs(aFilename: UTF8String; aEditorTypeID: UTF8String
+procedure TDocumentFrame.SaveAs(aFilename: UTF8String; aFormatID: UTF8String
   );
 var
   lStream: TFileStream;
@@ -299,9 +299,9 @@ begin
   // First things first, get the text in appropriate save format, because
   // if we can't save in this format then an error should be raised
   // immediately.
-  lText := GetSaveText(aEditorTypeID);
+  lText := GetSaveText(aFormatID);
   fFileName := aFilename;
-  fFileFormatID := aEditorTypeID;
+  fFileFormatID := aFormatID;
   SetCaption;
   lStream := TFileStream.Create(aFilename,fmCreate);
   try
