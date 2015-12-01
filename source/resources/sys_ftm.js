@@ -15,29 +15,34 @@ var simplepadFTMValidate = (function() {
     var textAttr = function() {
         return function(node,name,value) {
             // almost anything is valid here...
+            return true;
         }
     }
     
     var choiceAttr = function(choices) {
-        return function(node,name,value) {
+        return function(node,name,value,error) {
             if (choices.indexOf(value) < 0) {
-                throw new Error("Attribute '" + name + "' has an invalid value '" + value + "'; context: " + nodePath(node));
+                error("Attribute '" + name + "' has an invalid value '" + value + "'; context: " + nodePath(node));
+            } else {
+                return true;
             }
         }
     }
     
     var styleAttr = function(attributes) {
-        return function(node,name,value) {
-            var result = "";
+        return function(node,name,value,error) {
+            var result = '';
             var styles = value.split(';');
             for (var i = 0; i < styles.length - 1; i += 1) {
                 var style = styles[i].split(':');
                 var styleVal = style[1].trim();
                 var style = style[0].trim();
                 if (attributes.hasOwnProperty(style)) {
-                    attributes[style](node,style,styleVal);
+                    if (attributes[style](node,style,styleVal,error)) {
+                        result = result + style + ':' + styleVal + ';';
+                    }
                 } else {
-                    throw new Error("Style property '" + style + "' not allowed here: " + nodePath(node));
+                    error("Style property '" + style + "' not allowed here: " + nodePath(node));
                 }
             }
             return result;
@@ -45,17 +50,21 @@ var simplepadFTMValidate = (function() {
     };
     
     var pixelAttr = function() {
-        return function(node,name,value) {
+        return function(node,name,value,error) {
             if (isNaN(parseInt(value))) {
-                throw new Error("Style property '" + name + "' has an invalid value '" + value + "'; context: " + nodePath(node));
+                error("Style property '" + name + "' has an invalid value '" + value + "'; context: " + nodePath(node));
+            } else {
+                return true;
             }
         }
     }
     
     var integerAttr = function() {
-        return function(node,name,value) {
+        return function(node,name,value,error) {
             if (isNaN(parseInt(value))) {
-                throw new Error("Attribute '" + name + "' has an invalid value '" + value + "'; context: " + nodePath(node));
+                error("Attribute '" + name + "' has an invalid value '" + value + "'; context: " + nodePath(node));
+            } else {
+                return true;
             }
         }
     }
@@ -69,24 +78,34 @@ var simplepadFTMValidate = (function() {
     
     var tag = function(attributes,childContext) {
         attributes = attributes || {};
-        return function(node) {
-            Array.prototype.forEach.call(node.attributes,function(attr) {
+        return function(node,error) {
+            Array.prototype.slice.call(node.attributes, 0).forEach(function(attr) {
+                var value;
                 if (attributes.hasOwnProperty(attr.name)) {
-                    attributes[attr.name](node,attr.name,attr.value);
+                    value = attributes[attr.name](node,attr.name,attr.value,error);
                 } else if (defaultAttributes.hasOwnProperty(attr.name)) {
-                    defaultAttributes[attr.name](node,attr.name,attr.value);
+                    value = defaultAttributes[attr.name](node,attr.name,attr.value,error);
                 } else {
-                    throw new Error("Attribute '" + attr.name + "' not allowed here: " + nodePath(node));
+                    error("Attribute '" + attr.name + "' not allowed here: " + nodePath(node));
+                }
+                if (value) {
+                    node.setAttribute(attr.name,value);
+                } else {
+                    node.removeAttribute(attr.name);
                 }
             });
             var child;
-            if (child = node.firstChild) {
+            if (node.hasChildNodes()) {
                 if (childContext) {
-                    for (;!!child; child = child.nextSibling) {
-                        childContext(child);
+                    var childNodes = Array.prototype.slice.call(node.childNodes, 0);
+                    for (var i = 0; i < childNodes.length; i += 1) {
+                        childContext(childNodes[i],error);
                     }
                 } else {
-                    throw new Error("Node must be empty: " + nodePath(node));
+                    error("Node must be empty: " + nodePath(node));
+                    while (node.firstChild) {
+                        node.removeChild(node.firstChild);
+                    }
                 }
             }
         }
@@ -94,24 +113,27 @@ var simplepadFTMValidate = (function() {
 
     var context = function(allowText) {
         var tags = {};
-        var result = function(node) {
+        var result = function(node,error) {
             switch (node.nodeType) {
                 case Node.TEXT_NODE:
                     if ((!allowText) && (text.trim() !== "")) {
-                        throw new Error("Text not allowed here: " + nodePath(node.parentElement));
+                        error("Text not allowed here: " + nodePath(node.parentElement));
+                        node.remove();
                     } 
                     break;
                 case Node.ELEMENT_NODE:
                     var tagName = node.tagName.toLowerCase();
                     if (tags.hasOwnProperty(tagName)) {
-                        tags[tagName](node);
+                        tags[tagName](node,error);
                     } else {
-                        throw new Error("Tag '" + tagName + "' not allowed here: " + nodePath(node.parentElement));
+                        error("Tag '" + tagName + "' not allowed here: " + nodePath(node.parentElement));
+                        node.remove();
                     }
                     break;
                 default:
                     // I'm going to just ignore anything else.
-                    throw new Error("Invalid node type: " + node.nodeType);
+                    error("Invalid node: " + node.nodeName);
+                    node.parentNode.removeChild(node);
             }
         };
         
@@ -157,7 +179,7 @@ var simplepadFTMValidate = (function() {
         })
         
     var flowContext = context(true);
-    flowContext.tag(["a","em","strong","code","sub","sup","i","b","span"],textContext);
+    flowContext.tag(["a","em","strong","code","sub","sup","i","b","span","br"],textContext);
     
     var oListContext = context(true);
     oListContext.tag("li",{ value: integerAttr()},flowContext);
@@ -200,19 +222,26 @@ var simplepadFTMValidate = (function() {
     flowContext.tag("table",{},tableContext);
     
     
-    return function(html) {
+    return function(html,err) {
         
-        var output = "";
+        if (typeof err !== "function") {
+            err = function(message) {
+               throw new Error(message);
+            }
+        }
+        
         var input = document.createElement('div');
         // add a flag to avoid getting out of the document for some reason.
         input.ftmroot = true;
         input.innerHTML = html;
-        
-        for (var child = input.firstChild; child; child = child.nextSibling) {
-            output += flowContext(child);
+
+        var childNodes = Array.prototype.slice.call(input.childNodes, 0);
+        for (var i = 0; i < childNodes.length; i += 1) {
+            flowContext(childNodes[i],err);
         }
         
-        return output;
+        return input.innerHTML;
+        
         
     }
 })();

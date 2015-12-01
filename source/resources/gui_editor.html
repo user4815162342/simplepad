@@ -148,7 +148,7 @@
                      try {
                         simplepadFTMValidate(result);
                      } catch (e) {
-                         alert("The FTM produced by simplepad did not validate. The invalid document will still be saved. The message provided by the validator was: \n" + e.message);
+                         alert("The FTM produced by simplepad did not validate. The invalid document will still be saved so you can figure out what went wrong. The message provided by the validator was: \n" + e.message);
                      }
                      result = html_beautify(result,{
                          wrap_line_length: 80
@@ -175,11 +175,14 @@
                   case simplepad.HTML_FORMAT:
                      break;
                   case simplepad.FTM_FORMAT:
-                     try {
-                        simplepadFTMValidate(contents);
-                     } catch (e) {
-                         alert("This FTM document contains unsupported formatting. The message provided by the validator was: \n" + e.message);
-                         return;
+                     var firstError;
+                     contents = simplepadFTMValidate(contents,function(message) {
+                         if (!firstError) {
+                             firstError = message;
+                         }
+                     });
+                     if (firstError) {
+                         alert("This FTM document contains unsupported formatting. The message provided by the validator was: \n" + firstError);
                      }
                      break;
                   case simplepad.MARKDOWN_FORMAT:
