@@ -213,9 +213,13 @@ var
   lCaption: String;
 begin
   if fFileName = '' then
-     lCaption := 'Untitled'
+     lCaption := '(Untitled)'
   else
-     lCaption := ExtractFileNameOnly(fFileName);
+  begin
+     lCaption := ExtractFileName(fFileName);
+     if not FileExists(fFileName) then
+        lCaption := '(' + lCaption + ')';
+  end;
   if IsModified then
      lCaption := lCaption + '*';
   if Caption <> lCaption then
@@ -250,26 +254,37 @@ begin
   fFileName := aFilename;
   fFileFormatID := aFormatID;
   SetCaption;
-  try
-    lStream := TFileStream.Create(aFilename,fmOpenRead);
+  if FileExists(aFilename) then
+  begin
     try
-      lString := TStringStream.Create('');
+      lStream := TFileStream.Create(aFilename,fmOpenRead);
       try
-        lString.CopyFrom(lStream,0);
-        LoadText(lString.DataString,aFormatID);
-        ClearModified;
+        lString := TStringStream.Create('');
+        try
+          lString.CopyFrom(lStream,0);
+          LoadText(lString.DataString,aFormatID);
+          ClearModified;
+        finally
+          lString.Free;
+        end;
       finally
-        lString.Free;
+        lStream.Free;
       end;
-    finally
-      lStream.Free;
-    end;
 
-  except
-    on E: Exception do
-    begin
-       DisplayLoadError('Unable to open file: ' + aFilename);
+    except
+      on E: Exception do
+      begin
+         DisplayLoadError('Unable to open file: ' + aFilename);
+      end;
     end;
+  end
+  else
+  begin
+    // we are creating it with a file that does not exist. Create a new document
+    // instead. This allows you to create and edit the file from a command
+    // line, which is really convenient.
+    CreateNewDocument;
+    ClearModified;
   end;
 end;
 

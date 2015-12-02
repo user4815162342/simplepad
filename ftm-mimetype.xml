@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- install with sudo xdg-mime install ftm-mimetype.xml -->
+<mime-info xmlns='http://www.freedesktop.org/standards/shared-mime-info'>
+  <mime-type type="text/x-ftm">  
+  <comment>Formatted Text Markup</comment>
+  <glob pattern="*.ftm"/>
+ </mime-type>
+</mime-info>

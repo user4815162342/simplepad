@@ -1304,7 +1304,14 @@ begin
   if aFrame.IsModified then
   begin
 
-    if aFrame.FileName = '' then
+    if (aFrame.FileName = '') or
+    // also need to show save as if the file's directory does not exist.
+    // This catches at least some cases where they provided a non-existent filename
+    // from the command line (in order to create a file), but were starting
+    // from a different directory than they thought they were.
+    // Anyway, that's the way Leafpad behaves, and gedit shows an error message
+    // in this case.
+       (not DirectoryExists(ExtractFileDir(aFrame.FileName))) then
     begin
       result := SaveFrameAs(aFrame)
     end

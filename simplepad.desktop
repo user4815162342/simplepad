@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Name=SimplePad
+Comment=SimplePad formatted text editor
+Exec=/usr/local/bin/simplepad
+Type=Application
+Categories=Office;
+MimeType=text/x-ftm
