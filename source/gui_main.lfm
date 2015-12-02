@@ -8,10 +8,12 @@ object MainForm: TMainForm
   ClientWidth = 707
   KeyPreview = True
   Menu = MainFormMenu
+  OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnKeyUp = FormKeyUp
+  OnShow = FormShow
   OnWindowStateChange = FormWindowStateChange
   LCLVersion = '1.2.6.0'
   object DocumentTabs: TPageControl

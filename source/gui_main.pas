@@ -53,7 +53,7 @@ digging through firefox or chrome source code.
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
   ActnList, Menus, ExtCtrls, StdCtrls, Buttons, simpleipc, gui_documentframe,
-  sys_types;
+  sys_types, gui_config;
 
 type
 
@@ -111,10 +111,12 @@ type
     procedure DocumentTabsChange(Sender: TObject);
     procedure DocumentTabsCloseTabClicked(Sender: TObject);
     procedure FindEditKeyUp(Sender: TObject; var Key: Word; {%H-}Shift: TShiftState);
+    procedure FormClose(Sender: TObject; var {%H-}CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; {%H-}Shift: TShiftState);
     procedure FormKeyUp(Sender: TObject; var Key: Word; {%H-}Shift: TShiftState);
+    procedure FormShow(Sender: TObject);
     procedure FormWindowStateChange(Sender: TObject);
     procedure IPCServer_CheckMessage(Sender: TObject);
     procedure IPCServer_ReceiveMessage(Sender: TObject);
@@ -158,6 +160,7 @@ type
     fIPCServer: TSimpleIPCServer;
     fIPCClient: TSimpleIPCClient;
     fOpenAfterLoad: TOpenAfterLoad;
+    fScreenConfiguration: TScreenConfiguration;
     fFullscreen: Boolean;
     fRevealTags: Boolean;
     fOriginalState: TWindowState;
@@ -178,6 +181,7 @@ type
     function GetCurrentFrame: TDocumentFrame;
     function HasFrame: Boolean;
     procedure ToggleFullscreen;
+    procedure FullScreenChanged; virtual;
     procedure ToggleRevealTags;
     procedure ShowMenu;
     procedure HideMenu;
@@ -419,6 +423,17 @@ begin
 
 end;
 
+procedure TMainForm.FormShow(Sender: TObject);
+begin
+  // has to be done here in order to make sure it sets the unmaximized
+  // heights appropriately. In FormCreate, the heights will be overwritten
+  // after setting the WindowState, and next session the normal state will
+  // look almost maximized.
+  fScreenConfiguration := TScreenConfiguration.Create(Self);
+  fFullscreen := WindowState = wsFullScreen;
+  FullScreenChanged;
+end;
+
 
 procedure TMainForm.FormWindowStateChange(Sender: TObject);
 begin
@@ -575,6 +590,11 @@ begin
   begin
     CloseFindReplacePanelButton.Click;
   end;
+end;
+
+procedure TMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+  fScreenConfiguration.Save;
 end;
 
 procedure TMainForm.CutAction(Sender: TObject);
@@ -1443,25 +1463,37 @@ begin
   begin
     fFullscreen := false;
     WindowState := fOriginalState;
-    ShowMenu;
-    ShowTabs;
-    MakeDocumentsNotFullscreen;
   end
   else
   begin
     fFullscreen := true;
     fOriginalState := WindowState;
     WindowState := wsFullScreen;
-    HideMenu;
-    HideTabs;
-    MakeDocumentsFullscreen;
   end;
+  FullScreenChanged;
 
   // TODO: Now, we need to hide:
   // - menu
   // - tabbar
   // - toolbar
   // Except when we need them.
+
+end;
+
+procedure TMainForm.FullScreenChanged;
+begin
+  if fFullscreen then
+  begin
+    HideMenu;
+    HideTabs;
+    MakeDocumentsFullscreen;
+  end
+  else
+  begin
+    ShowMenu;
+    ShowTabs;
+    MakeDocumentsNotFullscreen;
+  end;
 
 end;
 
@@ -1499,6 +1531,7 @@ procedure TMainForm.HideTabs;
 begin
   DocumentTabs.ShowTabs := false;
 end;
+
 
 procedure TMainForm.SetCaption;
 var
