@@ -94,7 +94,7 @@ type
 implementation
 
 uses
-  gui_main;
+  gui_main, LazUTF8;
 
 const
   ReturnResultCommand = 'return';
@@ -248,7 +248,7 @@ begin
   lContents := GetEditorContents(lFormat);
   // I need to do some sanity checks, because I can find no specs saying that
   // there isn't a limit to the length of window.status, so this will allow me to know.
-  if lContents.Length <> Length(lContents.Contents) then
+  if lContents.Length <> UTF8Length(lContents.Contents) then
      raise Exception.Create('Actual length of content (' + IntToStr(Length(lContents.Contents)) + ') does not match reported length (' + IntToStr(lContents.Length) + ').');
   result := lContents.Contents;
 
