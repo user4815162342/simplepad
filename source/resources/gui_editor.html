@@ -1,7 +1,5 @@
 <html>
    <head>
-       <!-- TODO: I *do* need to support pasting formatted text, as right now 
-            it's getting in the way that I have to reformat text that I paste -->
      <!-- toolbar button images -->
      <link rel="stylesheet" type="text/css" href="bower_components/font-awesome/css/font-awesome.css "/>
      <!-- medium-editor -->
@@ -138,8 +136,6 @@
 
           // initialize the rest of the interaction object.
           simplepad.getContents = function(format) {
-              // TODO: How to convert back to HTML, looks like Marked
-              // doesn't do that...
               var result = editor.serialize().content.value;
               switch (format) {
                   case simplepad.HTML_FORMAT:

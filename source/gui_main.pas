@@ -4,63 +4,12 @@ unit gui_main;
 
 interface
 
-{
-TODO:
-1) Finish various actions.
-- Spell Check? -- http://webkitgtk.org/reference/webkitgtk/stable/WebKitSpellChecker.html
-  - NOTE: I have the spellchecking turned on with a TWebkitSettings, but I don't
-    know how to right-click to find the right word... And, I don't know how to
-    navigate through misspellings in the thing. I wonder if I can put in some
-    spell checking shim in, instead:
-    - http://orangoo.com/labs/GoogieSpell/
-      - Not sure if you have to run a server here...
-    - http://www.afterthedeadline.com/development.slp
-      (there is a jquery plugin linked here that might just work for us).
-      (However, this really requires running your own server if we're going to
-       distribute the app. Maybe, we need to specify the server in configuration?)
-  - I don't need to have the spellcheck stuff underlined, I hate seeing that anyway.
-    I'd rather just have a spell-check/grammar-check wizard, which could then easily
-    be done with a command line program that returns data in a certain format to let
-    me find the location.
-- Grammar Check? -- http://www.afterthedeadline.com/api.slp
-- make sure actions get enabled/disabled and checked according to various statuses.
-  I might be able to use TAction subclasses with appropriate methods instead of Events
-  to handle updating and executing, and just call public methods on the form.
-2) Additional tags to support at some point.
-  Some of these might have plugins available:
-  - hr
-  - dl/dt/dd
-  - pre: Already partially supported, but I can't do line breaks within.
-  - code (inline preformatted, but it should also be used to wrap around code in a pre-tag)
-  - table/tr/th/td (existing plugins doesn't work. In testing, it shows up with
-    a grid that lets me select number rows/columns, and the table itself has buttons
-    which allow me to insert and delete. However, this doesn't show up in the program.
-    I need buttons that will allow me to insert tables, rows, columns, and delete rows and columns.
-  - img (existing plugins don't work. All it apparently does is turn text into an image tag,
-    which isn't useful. I should be able to make use of the link editor button to
-    specify a source, maybe other attributes, but it's going to get complex. This might
-    be better done with a native dialog).
-3) Need a word count status bar (that updates to just the selection word count when that's changed)
-4) Problems printing: it's cutting off the page in the middle of text.
-I can't really test this outside of GTK Webkit, because everything else
-seems to work fine...Maybe there's some standard print media css used
-in other browsers that isn't loaded in automatically? That would require
-digging through firefox or chrome source code.
-5) Need to keep the window size, state and shape between sessions.
-
-}
-
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
   ActnList, Menus, ExtCtrls, StdCtrls, Buttons, simpleipc, gui_documentframe,
   sys_types, gui_config;
 
 type
-
-  // TODO: Work specifically with HTMLFrame as our editor. The default LCL
-  //  Editors (RichMemo and TMemo) don't work very well, but lazWebkit does.
-  //  I just have to be a bit more barebones about it. See that unit for
-  //  more info on what needs to be done.
 
   TUpdateActionEvent = procedure(Sender: TAction; var aEnabled: Boolean; var aChecked: Boolean; var aVisible: Boolean) of object;
 
@@ -691,7 +640,8 @@ begin
               #9 + 'medium-editor' + LineEnding +
               #9 + 'font-awesome' + LineEnding +
               #9 + 'marked' + LineEnding +
-              #9 + 'to-markdown');
+              #9 + 'to-markdown' + LineEnding +
+              #9 + 'js-beautify');
 end;
 
 procedure TMainForm.IPCServer_CheckMessage(Sender: TObject);
@@ -1348,7 +1298,6 @@ function TMainForm.SaveFrameAs(aFrame: TDocumentFrame): Boolean;
 var
   lOriginalFileName: String;
 begin
-  // TODO: What should be the default filename?
   DocumentSaveAsDialog.Filter := TDocumentFrame.EditorDialogFilters(aFrame.GetFileType);
   lOriginalFileName := aFrame.FileName;
   if lOriginalFileName <> '' then
@@ -1471,12 +1420,6 @@ begin
     WindowState := wsFullScreen;
   end;
   FullScreenChanged;
-
-  // TODO: Now, we need to hide:
-  // - menu
-  // - tabbar
-  // - toolbar
-  // Except when we need them.
 
 end;
 

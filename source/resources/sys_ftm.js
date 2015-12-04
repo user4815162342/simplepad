@@ -1,8 +1,6 @@
 
 var simplepadFTMValidate = (function() {
     
-    // TODO: I need to space the output nicely... I wonder if I were to produce HTML instead if it would work.
-    
     var nodePath = function(node) {
         var result = "";
         while ((node != null) && (!node.ftmroot)) {

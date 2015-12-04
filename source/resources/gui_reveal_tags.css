@@ -1,5 +1,4 @@
 
-/* TODO: It would be nice if this showed as a full-height block instead of just an indent. */
 body.reveal div.simplepadeditor *:before {
   font-size: 8px;
   vertical-align: top;

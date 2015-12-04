@@ -35,7 +35,7 @@ div.simplepadeditor:focus {
    outline: none;
 }
 
-/* TODO: Need borders on tables */
+/* Need borders on tables */
 div.simplepadeditor table {
    border-collapse: collapse;
 }

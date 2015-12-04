@@ -165,7 +165,7 @@ var
   lButtonTextColor: String;
   lButtonShadowColor: String;
 begin
-  // TODO: Specify the format to save the document in.
+
   lWindowColor := '#'+HexStr(ColorToRGB(clWindow),6);
   lWindowTextColor := '#'+HexStr(ColorToRGB(clWindowText),6);
   lButtonColor := '#'+HexStr(ColorToRGB(clBtnFace),6);
@@ -298,13 +298,12 @@ begin
   case aCommand of
     ReturnResultCommand:
       fScriptResult := aData;
-    // TODO: Do something depending on the message...
+    // Do something depending on the message...
   end;
 end;
 
 procedure THTMLFrame.OverwriteSelection(aText: String);
 begin
-  // TODO: Test this...
   HTMLEditor.ExecuteScript('simplepad.overwriteSelection("' + StringToJSONString(aText) + '")');
 end;
 
@@ -481,7 +480,6 @@ end;
 
 function THTMLFrame.GetParagraphStyle: TParagraphStyle;
 begin
-  // TODO:
   result := psNormal;;
 end;
 
@@ -500,7 +498,6 @@ end;
 function THTMLFrame.HasTextStyle(aFormat: TTextStyle): boolean;
 begin
   result := false;
-  // TODO:
 end;
 
 procedure THTMLFrame.ClearTextStyles;
@@ -510,12 +507,10 @@ end;
 
 procedure THTMLFrame.DecreaseListIndent;
 begin
-  // TODO:
 end;
 
 procedure THTMLFrame.IncreaseListIndent;
 begin
-  // TODO:
 end;
 
 class function THTMLFrame.GetFileType: String;
