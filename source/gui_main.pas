@@ -548,7 +548,13 @@ end;
 
 procedure TMainForm.CutAction(Sender: TObject);
 begin
-  GetCurrentFrame.Cut;
+  if FindEdit.Focused then
+     FindEdit.CutToClipboard
+  else if ReplaceEdit.Focused then
+     ReplaceEdit.CutToClipboard
+  else
+     GetCurrentFrame.Cut;
+
 end;
 
 procedure TMainForm.DecreaseIndentAction(Sender: TObject);
@@ -593,7 +599,12 @@ end;
 
 procedure TMainForm.CopyAction(Sender: TObject);
 begin
-  GetCurrentFrame.Copy;
+  if FindEdit.Focused then
+     FindEdit.CopyToClipboard
+  else if ReplaceEdit.Focused then
+     ReplaceEdit.CopyToClipboard
+  else
+     GetCurrentFrame.Copy;
 end;
 
 procedure TMainForm.BoldAction(Sender: TObject);
@@ -702,7 +713,12 @@ end;
 
 procedure TMainForm.PasteAction(Sender: TObject);
 begin
-  GetCurrentFrame.Paste;
+  if FindEdit.Focused then
+     FindEdit.PasteFromClipboard
+  else if ReplaceEdit.Focused then
+     ReplaceEdit.PasteFromClipboard
+  else
+     GetCurrentFrame.Paste;
 end;
 
 procedure TMainForm.RedoAction(Sender: TObject);
@@ -825,7 +841,7 @@ end;
 procedure TMainForm.UpdateCopyAction(Sender: TAction; var aEnabled: Boolean;
   var aChecked: Boolean; var aVisible: Boolean);
 begin
-  aEnabled := HasFrame and GetCurrentFrame.CanCopy;
+  aEnabled := (HasFrame and GetCurrentFrame.CanCopy) or (FindEdit.Focused or ReplaceEdit.Focused);
 end;
 
 procedure TMainForm.UpdateFindNextAction(Sender: TAction;
@@ -850,7 +866,7 @@ end;
 procedure TMainForm.UpdatePasteAction(Sender: TAction; var aEnabled: Boolean;
   var aChecked: Boolean; var aVisible: Boolean);
 begin
-  aEnabled := HasFrame and GetCurrentFrame.CanPaste;
+  aEnabled := (HasFrame and GetCurrentFrame.CanPaste) or (FindEdit.Focused or ReplaceEdit.Focused);
 end;
 
 procedure TMainForm.UpdateListAction(Sender: TAction; var aEnabled: Boolean;
@@ -888,7 +904,8 @@ end;
 procedure TMainForm.UpdateCutAction(Sender: TAction; var aEnabled: Boolean;
   var aChecked: Boolean; var aVisible: Boolean);
 begin
-  aEnabled := HasFrame and GetCurrentFrame.CanCut;
+  aEnabled := (HasFrame and GetCurrentFrame.CanCut) or (FindEdit.Focused or ReplaceEdit.Focused);
+
 end;
 
 procedure TMainForm.UpdateUndoAction(Sender: TAction; var aEnabled: Boolean;
