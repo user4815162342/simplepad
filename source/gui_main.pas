@@ -43,6 +43,7 @@ type
   TMainForm = class(TForm)
     FindPreviousButton: TButton;
     FindNextButton: TButton;
+    LeftSidebar: TPanel;
     ReplaceCheckbox: TCheckBox;
     FindEdit: TEdit;
     ReplaceEdit: TEdit;
@@ -54,6 +55,8 @@ type
     DocumentSaveAsDialog: TSaveDialog;
     FindReplacePanel: TPanel;
     CloseFindReplacePanelButton: TSpeedButton;
+    LeftSidebarSplitter: TSplitter;
+    ProjectTreeView: TTreeView;
     procedure CloseFindReplacePanelButtonClick(Sender: TObject);
     procedure DocumentCaptionChanged(Sender: TObject);
     procedure DocumentFrameLoaded(Sender: TObject);
@@ -71,6 +74,7 @@ type
     procedure IPCServer_ReceiveMessage(Sender: TObject);
     procedure NextTabAction(Sender: TObject);
     procedure PreviousTabAction(Sender: TObject);
+    procedure ProjectTreeViewDblClick(Sender: TObject);
     procedure RegisterAction(const aName: UTF8String;
       const aMenuCaption: UTF8String; const aFullCaption: UTF8String;
   aExecute: TNotifyEvent = nil; aUpdate: TUpdateActionEvent = nil);
@@ -79,6 +83,7 @@ type
     procedure ReplaceEditKeyUp(Sender: TObject; var Key: Word;
       {%H-}Shift: TShiftState);
     procedure RevealTagsAction(Sender: TObject);
+    procedure ShowProjectExplorerAction(Sender: TObject);
     procedure TestOfTheDayAction(Sender: TObject);
     procedure UpdateCheckGrammarAction(Sender: TAction; var aEnabled: Boolean;
       var {%H-}aChecked: Boolean; var {%H-}aVisible: Boolean);
@@ -113,6 +118,7 @@ type
     fFullscreen: Boolean;
     fRevealTags: Boolean;
     fOriginalState: TWindowState;
+    fProjectDirectory: UTF8String;
     procedure InitializeIPCServer;
     procedure InitializeIPCClient;
     procedure SetupDialogs;
@@ -142,11 +148,14 @@ type
     procedure MakeDocumentsNotRevealTags;
     procedure MakeDocumentsRevealTags;
     procedure NotImplemented(aFunction: String);
+    procedure LoadProjectFiles(aDirectory: UTF8String; aNode: TTreeNode);
   public
     { public declarations }
     procedure OpenFile(aFileName: UTF8String); overload;
     procedure OpenFile(aFileName: UTF8String; aEditorType: TDocumentFrameClass;
       aEditorFormatID: String);
+    procedure SetProjectDirectory(aDirectory: UTF8String);
+    procedure RefreshProjectView;
     procedure NewFile(aEditorType: TDocumentFrameClass);
     procedure CloseCurrentTabAction(Sender: TObject);
     procedure ExecuteAboutAction(Sender: TObject);
@@ -689,6 +698,28 @@ begin
      DocumentTabs.PageIndex := DocumentTabs.PageCount - 1;
 end;
 
+procedure TMainForm.ProjectTreeViewDblClick(Sender: TObject);
+var
+  lSelectedNode: TTreeNode;
+  lPath: UTF8String;
+begin
+  lSelectedNode := ProjectTreeView.Selected;
+  if lSelectedNode <> nil then
+  begin
+    lPath := lSelectedNode.Text;
+    lSelectedNode := lSelectedNode.Parent;
+    while lSelectedNode <> nil do
+    begin
+      lPath := IncludeTrailingPathDelimiter(lSelectedNode.Text) + lPath;
+      lSelectedNode := lSelectedNode.Parent;
+    end;
+    lPath := IncludeTrailingPathDelimiter(fProjectDirectory) + lPath;
+    if (not DirectoryExists(lPath)) and FileExists(lPath) then
+       OpenFile(lPath);
+  end;
+
+end;
+
 procedure TMainForm.NewFileAction(Sender: TObject);
 begin
   if Sender is TNewDocumentAction then
@@ -800,6 +831,17 @@ end;
 procedure TMainForm.RevealTagsAction(Sender: TObject);
 begin
   ToggleRevealTags;
+end;
+
+procedure TMainForm.ShowProjectExplorerAction(Sender: TObject);
+begin
+  if LeftSidebar.Width > 1 then
+     LeftSidebar.Width := 1
+  else
+  begin
+     LeftSidebar.Width := 170;
+     RefreshProjectView;
+  end;
 end;
 
 procedure TMainForm.TestOfTheDayAction(Sender: TObject);
@@ -990,6 +1032,7 @@ var
   i: Integer;
   lTab: TTabSheet;
   lFrame: TDocumentFrame;
+  lDir: UTF8String;
 begin
   // first, look for an existing tab...
   for i := 0 to DocumentTabs.PageCount - 1 do
@@ -1019,6 +1062,33 @@ begin
   end;
 
   CreateFrame(aEditorType).Load(aFileName,aEditorFormatID);
+
+  if (fProjectDirectory = '') or
+     (DocumentTabs.PageCount = 1) then
+  begin
+    SetProjectDirectory(ExtractFileDir(aFileName));
+  end
+  else
+  begin
+    RefreshProjectView;
+  end;
+end;
+
+procedure TMainForm.SetProjectDirectory(aDirectory: UTF8String);
+begin
+  fProjectDirectory := aDirectory;
+  RefreshProjectView;
+end;
+
+procedure TMainForm.RefreshProjectView;
+begin
+  if LeftSidebar.Width > 1 then
+  begin
+    ProjectTreeView.Items.Clear;
+    if fProjectDirectory <> '' then;
+       LoadProjectFiles(fProjectDirectory,nil);
+
+  end;
 end;
 
 procedure TMainForm.NewFile(aEditorType: TDocumentFrameClass);
@@ -1066,6 +1136,7 @@ begin
   //RegisterAction('DecreaseIndentAction','Decrease Indent','Decrease left indent of current paragraph',@DecreaseIndentAction,@UpdateListAction);
   RegisterAction('FullscreenAction','&Fullscreen','Toggle fullscreen display',@FullscreenAction);
   RegisterAction('RevealTagsAction','&Reveal Tags','Toggle display of tag hints for better understanding of formats.',@RevealTagsAction);
+  RegisterAction('ProjectExplorerAction','Project Explorer','Show a file directory explorer.',@ShowProjectExplorerAction);
   RegisterAction('CheckSpellingAction','&Spelling','Check spelling of document',@CheckSpellingAction,@UpdateCheckSpellingAction);
   RegisterAction('CheckGrammarAction','&Grammar','Run grammar check on document text',@CheckGrammarAction,@UpdateCheckGrammarAction);
   RegisterAction('AboutAction','&About','Show information about this application',@ExecuteAboutAction);
@@ -1189,6 +1260,7 @@ begin
   NewMainMenu('&Tools');
   AddItem('FullscreenAction');
   AddItem('RevealTagsAction');
+  AddItem('ProjectExplorerAction');
   lMenu.AddSeparator;
   AddItem('CheckSpellingAction');
   AddItem('CheckGrammarAction');
@@ -1264,6 +1336,7 @@ begin
   //AssignShortCut('DecreaseIndentAction',VK_OEM_PERIOD,[ssCtrl]);
   AssignShortCut('FullscreenAction',VK_F11);
   AssignShortCut('CheckSpellingAction',VK_F7);
+  AssignShortCut('ProjectExplorerAction',VK_P,[ssCtrl,ssAlt]);
 
   AssignShortCut('NextTabAction',VK_TAB,[ssCtrl]);
   AssignShortCut('PreviousTabAction',VK_TAB,[ssCtrl,ssShift]);
@@ -1548,6 +1621,41 @@ end;
 procedure TMainForm.NotImplemented(aFunction: String);
 begin
   ShowMessage(aFunction + ' is not implemented yet.');
+end;
+
+procedure TMainForm.LoadProjectFiles(aDirectory: UTF8String; aNode: TTreeNode);
+var
+  lSearch: LongInt;
+  lSearchRec: TSearchRec;
+  lNode: TTreeNode;
+begin
+  lSearch := FindFirst(IncludeTrailingPathDelimiter(aDirectory) + '*',faDirectory,lSearchRec);
+  try
+    while lSearch = 0 do
+    begin
+      if lSearchRec.Name[1] <> '.' then
+      begin
+         if (lSearchRec.Attr and faDirectory) = faDirectory then
+         begin
+           lNode := ProjectTreeView.Items.AddChild(aNode,lSearchRec.Name);
+           LoadProjectFiles(IncludeTrailingPathDelimiter(aDirectory) + lSearchRec.Name,lNode);
+           if lNode.Count = 0 then
+              ProjectTreeView.Items.Delete(lNode);
+         end
+         else if TDocumentFrame.FindEditorForFormatID(
+                     TDocumentFrame.FindFormatIDForFile(lSearchRec.Name)) <> nil then
+         begin
+           lNode := ProjectTreeView.Items.AddChild(aNode,lSearchRec.Name);
+         end;
+
+      end;
+
+      lSearch := FindNext(lSearchRec);
+    end;
+  finally
+    FindClose(lSearchRec);
+  end;
+
 end;
 
 

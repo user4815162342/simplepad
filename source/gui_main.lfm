@@ -17,10 +17,10 @@ object MainForm: TMainForm
   OnWindowStateChange = FormWindowStateChange
   LCLVersion = '1.2.6.0'
   object DocumentTabs: TPageControl
-    Left = 0
+    Left = 6
     Height = 402
     Top = 0
-    Width = 707
+    Width = 701
     TabStop = False
     Align = alClient
     TabOrder = 0
@@ -150,6 +150,34 @@ object MainForm: TMainForm
       Caption = 'X'
       OnClick = CloseFindReplacePanelButtonClick
     end
+  end
+  object LeftSidebar: TPanel
+    Left = 0
+    Height = 402
+    Top = 0
+    Width = 1
+    Align = alLeft
+    ClientHeight = 402
+    ClientWidth = 1
+    TabOrder = 2
+    object ProjectTreeView: TTreeView
+      Left = 0
+      Height = 400
+      Top = 1
+      Width = 1
+      Align = alClient
+      DefaultItemHeight = 18
+      ReadOnly = True
+      TabOrder = 0
+      OnDblClick = ProjectTreeViewDblClick
+      Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+    end
+  end
+  object LeftSidebarSplitter: TSplitter
+    Left = 1
+    Height = 402
+    Top = 0
+    Width = 5
   end
   object MainFormActions: TActionList
     left = 478
