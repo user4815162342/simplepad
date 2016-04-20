@@ -7,8 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, gui_main, gui_documentframe,
-gui_htmlframe, sys_types, gui_config;
+  Forms, richmemopackage, gui_main, gui_documentframe,
+gui_htmlframe, sys_types, gui_config, gui_gtktextwidgetframe, gtk_textwidget;
 
 {$R *.res}
 

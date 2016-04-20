@@ -1132,11 +1132,11 @@ var
 begin
   // I don't want to have to go through the gui interface to create
   // these actions in the action list editor, so I'm doing this by code...
+  RegisterAction('NewFileAction','&New','New file',@NewFileAction);
   for i := 0 to TDocumentFrame.FileTypeCount - 1 do
   begin
     RegisterNewFileAction(TDocumentFrame.FileTypeIDS[i]);
   end;
-  RegisterAction('NewFileAction','&New','New file',@NewFileAction);
   RegisterAction('OpenFileAction','&Open','Open a file',@OpenFileAction);
   RegisterAction('SaveFileAction','&Save','Save the file',@SaveFileAction,@UpdateSaveFileAction);
   RegisterAction('SaveFileAsAction','Save &As...','Save the file under a new name',@SaveFileAsAction);
@@ -1249,8 +1249,10 @@ begin
     end;
     EndSubMenu;
   end
-  else if TDocumentFrame.FileTypeCount > 0 then;
+  else if TDocumentFrame.FileTypeCount > 0 then
+  begin
     AddItem('NewFileAction');
+  end;
   AddItem('OpenFileAction');
   lMenu.AddSeparator;
   AddItem('SaveFileAction');
