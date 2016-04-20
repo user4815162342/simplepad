@@ -10,6 +10,8 @@ uses
   sys_types, gui_config;
 
 type
+  // TODO: "Project Explorer" should be more configurable... we should be able
+  // to set which project is open.
 
   TUpdateActionEvent = procedure(Sender: TAction; var aEnabled: Boolean; var aChecked: Boolean; var aVisible: Boolean) of object;
 
@@ -37,6 +39,8 @@ type
     property FileType: String read fFileType write SetFileType;
   end;
 
+  EMaxProjectSizeReached = class(Exception);
+
   TOpenAfterLoad = class;
 
   { TMainForm }
@@ -57,6 +61,7 @@ type
     CloseFindReplacePanelButton: TSpeedButton;
     LeftSidebarSplitter: TSplitter;
     ProjectTreeView: TTreeView;
+    ProjectOpenDialog: TSelectDirectoryDialog;
     procedure CloseFindReplacePanelButtonClick(Sender: TObject);
     procedure DocumentCaptionChanged(Sender: TObject);
     procedure DocumentFrameLoaded(Sender: TObject);
@@ -72,8 +77,6 @@ type
     procedure FormWindowStateChange(Sender: TObject);
     procedure IPCServer_CheckMessage(Sender: TObject);
     procedure IPCServer_ReceiveMessage(Sender: TObject);
-    procedure NextTabAction(Sender: TObject);
-    procedure PreviousTabAction(Sender: TObject);
     procedure ProjectTreeViewDblClick(Sender: TObject);
     procedure RegisterAction(const aName: UTF8String;
       const aMenuCaption: UTF8String; const aFullCaption: UTF8String;
@@ -82,9 +85,6 @@ type
     procedure ReplaceCheckboxClick(Sender: TObject);
     procedure ReplaceEditKeyUp(Sender: TObject; var Key: Word;
       {%H-}Shift: TShiftState);
-    procedure RevealTagsAction(Sender: TObject);
-    procedure ShowProjectExplorerAction(Sender: TObject);
-    procedure TestOfTheDayAction(Sender: TObject);
     procedure UpdateCheckGrammarAction(Sender: TAction; var aEnabled: Boolean;
       var {%H-}aChecked: Boolean; var {%H-}aVisible: Boolean);
     procedure UpdateCheckSpellingAction(Sender: TAction; var aEnabled: Boolean;
@@ -119,6 +119,7 @@ type
     fRevealTags: Boolean;
     fOriginalState: TWindowState;
     fProjectDirectory: UTF8String;
+    const fMaxProjectSize = 4096;
     procedure InitializeIPCServer;
     procedure InitializeIPCClient;
     procedure SetupDialogs;
@@ -138,6 +139,10 @@ type
     procedure ToggleFullscreen;
     procedure FullScreenChanged; virtual;
     procedure ToggleRevealTags;
+    procedure ToggleProjectExplorer;
+    function IsProjectExplorerVisible: Boolean;
+    procedure HideProjectExplorer;
+    procedure ShowProjectExplorer;
     procedure ShowMenu;
     procedure HideMenu;
     procedure ShowTabs;
@@ -148,13 +153,14 @@ type
     procedure MakeDocumentsNotRevealTags;
     procedure MakeDocumentsRevealTags;
     procedure NotImplemented(aFunction: String);
-    procedure LoadProjectFiles(aDirectory: UTF8String; aNode: TTreeNode);
+    procedure LoadProjectFiles(aDirectory: UTF8String; aNode: TTreeNode;
+      var vCounter: Longint);
   public
     { public declarations }
     procedure OpenFile(aFileName: UTF8String); overload;
     procedure OpenFile(aFileName: UTF8String; aEditorType: TDocumentFrameClass;
       aEditorFormatID: String);
-    procedure SetProjectDirectory(aDirectory: UTF8String);
+    procedure OpenProject(aDirectoryName: UTF8String);
     procedure RefreshProjectView;
     procedure NewFile(aEditorType: TDocumentFrameClass);
     procedure CloseCurrentTabAction(Sender: TObject);
@@ -189,6 +195,12 @@ type
     procedure NewFileAction(Sender: TObject);
     procedure BlockQuoteAction(Sender: TObject);
     procedure CheckGrammarAction(Sender: TObject);
+    procedure NextTabAction(Sender: TObject);
+    procedure OpenProjectAction(Sender: TObject);
+    procedure PreviousTabAction(Sender: TObject);
+    procedure RevealTagsAction(Sender: TObject);
+    procedure ToggleProjectExplorerAction(Sender: TObject);
+    procedure TestOfTheDayAction(Sender: TObject);
   end;
 
   { TOpenAfterLoad }
@@ -690,6 +702,27 @@ begin
      DocumentTabs.PageIndex := 0;
 end;
 
+procedure TMainForm.OpenProjectAction(Sender: TObject);
+begin
+  if fProjectDirectory <> '' then
+  begin
+    ProjectOpenDialog.InitialDir := fProjectDirectory;
+  end;
+  if HasFrame then
+  begin
+    ProjectOpenDialog.InitialDir := ExtractFileDir(GetCurrentFrame.FileName);
+  end
+  else
+  begin
+    ProjectOpenDialog.InitialDir := GetCurrentDir;
+  end;
+  ProjectOpenDialog.Options := ProjectOpenDialog.Options + [ofFileMustExist];
+  if ProjectOpenDialog.Execute then
+  begin
+    OpenProject(ProjectOpenDialog.FileName);
+  end;
+end;
+
 procedure TMainForm.PreviousTabAction(Sender: TObject);
 begin
   if DocumentTabs.PageIndex > 0 then
@@ -833,15 +866,9 @@ begin
   ToggleRevealTags;
 end;
 
-procedure TMainForm.ShowProjectExplorerAction(Sender: TObject);
+procedure TMainForm.ToggleProjectExplorerAction(Sender: TObject);
 begin
-  if LeftSidebar.Width > 1 then
-     LeftSidebar.Width := 1
-  else
-  begin
-     LeftSidebar.Width := 170;
-     RefreshProjectView;
-  end;
+  ToggleProjectExplorer;
 end;
 
 procedure TMainForm.TestOfTheDayAction(Sender: TObject);
@@ -1032,7 +1059,6 @@ var
   i: Integer;
   lTab: TTabSheet;
   lFrame: TDocumentFrame;
-  lDir: UTF8String;
 begin
   // first, look for an existing tab...
   for i := 0 to DocumentTabs.PageCount - 1 do
@@ -1063,30 +1089,34 @@ begin
 
   CreateFrame(aEditorType).Load(aFileName,aEditorFormatID);
 
-  if (fProjectDirectory = '') or
-     (DocumentTabs.PageCount = 1) then
-  begin
-    SetProjectDirectory(ExtractFileDir(aFileName));
-  end
-  else
-  begin
-    RefreshProjectView;
-  end;
 end;
 
-procedure TMainForm.SetProjectDirectory(aDirectory: UTF8String);
+procedure TMainForm.OpenProject(aDirectoryName: UTF8String);
 begin
-  fProjectDirectory := aDirectory;
-  RefreshProjectView;
+  fProjectDirectory := aDirectoryName;
+  ShowProjectExplorer;
+
 end;
 
 procedure TMainForm.RefreshProjectView;
+var
+  lCounter: Longint;
 begin
-  if LeftSidebar.Width > 1 then
+  if (LeftSidebar.Width > 1) then
   begin
+
     ProjectTreeView.Items.Clear;
     if fProjectDirectory <> '' then;
-       LoadProjectFiles(fProjectDirectory,nil);
+    begin
+      lCounter := 0;
+      try
+        LoadProjectFiles(fProjectDirectory,nil,lCounter);
+
+      except
+        on E: EMaxProjectSizeReached do
+           ProjectTreeView.Items.AddChild(nil,'//...Project is too big to load...//');
+      end;
+    end;
 
   end;
 end;
@@ -1111,6 +1141,7 @@ begin
   RegisterAction('SaveFileAction','&Save','Save the file',@SaveFileAction,@UpdateSaveFileAction);
   RegisterAction('SaveFileAsAction','Save &As...','Save the file under a new name',@SaveFileAsAction);
   RegisterAction('SaveAllAction','Save All','Save all open files',@SaveAllFilesAction);
+  RegisterAction('OpenProjectAction','Open Project','Open a Simplepad Project',@OpenProjectAction);
   RegisterAction('PrintAction','&Print','Print the file',@PrintAction);
   RegisterAction('CloseTabAction','&Close','Close active file',@CloseCurrentTabAction);
   RegisterAction('QuitAction','&Quit','Quit application',@QuitApplicationAction);
@@ -1136,7 +1167,7 @@ begin
   //RegisterAction('DecreaseIndentAction','Decrease Indent','Decrease left indent of current paragraph',@DecreaseIndentAction,@UpdateListAction);
   RegisterAction('FullscreenAction','&Fullscreen','Toggle fullscreen display',@FullscreenAction);
   RegisterAction('RevealTagsAction','&Reveal Tags','Toggle display of tag hints for better understanding of formats.',@RevealTagsAction);
-  RegisterAction('ProjectExplorerAction','Project Explorer','Show a file directory explorer.',@ShowProjectExplorerAction);
+  RegisterAction('ProjectExplorerAction','Project Explorer','Show a file directory explorer.',@ToggleProjectExplorerAction);
   RegisterAction('CheckSpellingAction','&Spelling','Check spelling of document',@CheckSpellingAction,@UpdateCheckSpellingAction);
   RegisterAction('CheckGrammarAction','&Grammar','Run grammar check on document text',@CheckGrammarAction,@UpdateCheckGrammarAction);
   RegisterAction('AboutAction','&About','Show information about this application',@ExecuteAboutAction);
@@ -1225,6 +1256,8 @@ begin
   AddItem('SaveFileAction');
   AddItem('SaveFileAsAction');
   AddItem('SaveAllAction');
+  lMenu.AddSeparator;
+  AddItem('OpenProjectAction');
   lMenu.AddSeparator;
   AddItem('PrintAction');
   lMenu.AddSeparator;
@@ -1530,6 +1563,38 @@ begin
 
 end;
 
+procedure TMainForm.ToggleProjectExplorer;
+begin
+  if IsProjectExplorerVisible then
+     HideProjectExplorer
+  else
+     ShowProjectExplorer;
+end;
+
+function TMainForm.IsProjectExplorerVisible: Boolean;
+begin
+  result := LeftSidebar.Visible and (LeftSidebar.Width > 1);
+end;
+
+procedure TMainForm.HideProjectExplorer;
+begin
+  LeftSidebar.Width := 1;
+end;
+
+procedure TMainForm.ShowProjectExplorer;
+begin
+  if (fProjectDirectory = '') then
+  begin
+    OpenProjectAction(nil);
+  end
+  else
+  begin
+    LeftSidebar.Width := 170;
+    RefreshProjectView;
+  end;
+
+end;
+
 procedure TMainForm.ToggleRevealTags;
 begin
   if fRevealTags then
@@ -1623,7 +1688,8 @@ begin
   ShowMessage(aFunction + ' is not implemented yet.');
 end;
 
-procedure TMainForm.LoadProjectFiles(aDirectory: UTF8String; aNode: TTreeNode);
+procedure TMainForm.LoadProjectFiles(aDirectory: UTF8String; aNode: TTreeNode;
+  var vCounter: Longint);
 var
   lSearch: LongInt;
   lSearchRec: TSearchRec;
@@ -1633,12 +1699,15 @@ begin
   try
     while lSearch = 0 do
     begin
+      if vCounter >= fMaxProjectSize then
+         raise EMaxProjectSizeReached.Create('Maximum project size reached');
+      inc(vCounter);
       if lSearchRec.Name[1] <> '.' then
       begin
          if (lSearchRec.Attr and faDirectory) = faDirectory then
          begin
            lNode := ProjectTreeView.Items.AddChild(aNode,lSearchRec.Name);
-           LoadProjectFiles(IncludeTrailingPathDelimiter(aDirectory) + lSearchRec.Name,lNode);
+           LoadProjectFiles(IncludeTrailingPathDelimiter(aDirectory) + lSearchRec.Name,lNode,vCounter);
            if lNode.Count = 0 then
               ProjectTreeView.Items.Delete(lNode);
          end
