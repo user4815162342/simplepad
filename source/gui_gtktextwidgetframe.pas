@@ -6,7 +6,7 @@ interface
 
 {$IFDEF LCLGTK2}
 uses
-  Classes, SysUtils, FileUtil, RichMemo, Forms, Controls, Graphics, Dialogs,
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
   gui_documentframe, gtk_textwidget;
 
 type
@@ -97,25 +97,38 @@ function TGTKTextWidgetFrame.FindReplace(aSearchText: String;
   aForward: Boolean; aWrap: Boolean; aDoReplace: Boolean; aReplaceText: String
   ): Boolean;
 var
-  lPosition: Longint;
+  lStart: TTextIter;
+  lCurrent: TTextIter;
+  lMatchStart: TTextIter;
+  lMatchEnd: TTextIter;
+
 begin
+  lCurrent := fTextView.Buffer.IterAtMark(fTextView.Buffer.InsertMark);
   if aForward then
   begin
-    lPosition := fTextView.Search(aSearchText,fTextView.SelStart,Length(fTextView.Text),[]);
-    if (lPosition < 0) and aWrap then
-       lPosition := fTextView.Search(aSearchText,0,fTextView.SelStart,[]);
+    if aWrap then
+    begin
+      lStart := fTextView.Buffer.StartIter;
+      result := lStart.ForwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,lCurrent);
+    end
+    else
+      result := lCurrent.ForwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,fTextView.Buffer.EndIter);
   end
   else
   begin
-    // TODO: not sure if this is right...
-    lPosition := fTextView.Search(aSearchText,fTextView.SelStart,Length(fTextView.Text),[soBackward]);
-    if (lPosition < 0) and aWrap then
-       lPosition := fTextView.Search(aSearchText,Length(fTextView.Text),fTextView.SelStart,[soBackward]);
+    if aWrap then
+    begin
+      lStart := fTextView.Buffer.EndIter;
+      result := lStart.BackwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,lCurrent);
+    end
+    else
+      result := lCurrent.BackwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,fTextView.Buffer.StartIter);
   end;
 
-  if lPosition > -1 then
-     fTextView.SelStart := lPosition;
-  result := (lPosition > -1);
+  if result then
+  begin
+    fTextView.Buffer.SelectRange(lMatchStart,lMatchEnd);
+  end;
   // TODO: Still have to handle replace...
 
 end;

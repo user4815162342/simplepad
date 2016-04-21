@@ -80,6 +80,59 @@ type
 
   TTextJustification = (tjLeft, tjRight, tjCenter, tjFill);
   TWrapMode = (wmNone, wmChar, wmWord, wmWordChar);
+  TSearchFlag = (sfVisibleOnly, sfTextOnly);
+  TSearchFlags = set of TSearchFlag;
+
+  { TTextMark }
+
+  TTextMark = record
+  private
+    fMark: PGtkTextMark;
+    function GetDeleted: Boolean;
+    function GetLeftGravity: Boolean;
+    function GetName: String;
+    function GetVisible: Boolean;
+    procedure SetVisible(AValue: Boolean);
+  protected
+    class function New(aMark: PGtkTextMark): TTextMark; static;
+  public
+    property LeftGravity: Boolean read GetLeftGravity;
+    property Name: String read GetName;
+    property Visible: Boolean read GetVisible write SetVisible;
+    property Deleted: Boolean read GetDeleted;
+  end;
+
+  { TTextIter }
+
+  TTextIter = record
+  private
+    fIter: TGtkTextIter;
+    function GetLine: Longint;
+    function GetLineIndex: Longint;
+    function GetLineOffset: Longint;
+    function GetOffset: Longint;
+    function GetVisibleLineIndex: Longint;
+    function GetVisibleLineOffset: LongInt;
+    procedure SetLine(AValue: Longint);
+    procedure SetLineIndex(AValue: Longint);
+    procedure SetLineOffset(AValue: Longint);
+    procedure SetOffset(AValue: Longint);
+    procedure SetVisibleLineIndex(AValue: Longint);
+    procedure SetVisibleLineOffset(AValue: LongInt);
+  protected
+    class function New(aIter: TGtkTextIter): TTextIter; static;
+  public
+    property Offset: Longint read GetOffset write SetOffset;
+    property Line: Longint read GetLine write SetLine;
+    property LineOffset: Longint read GetLineOffset write SetLineOffset;
+    property LineIndex: Longint read GetLineIndex write SetLineIndex;
+    property VisibleLineIndex: Longint read GetVisibleLineIndex write SetVisibleLineIndex;
+    property VisibleLineOffset: LongInt read GetVisibleLineOffset write SetVisibleLineOffset;
+    // TODO: What else?
+    function ForwardSearch(aNeedle: UTF8String; aFlags: TSearchFlags; out oMatchStart: TTextIter; out oMatchEnd: TTextIter; aLimit: TTextIter): Boolean;
+    function BackwardSearch(aNeedle: UTF8String; aFlags: TSearchFlags; out oMatchStart: TTextIter; out oMatchEnd: TTextIter; aLimit: TTextIter): Boolean;
+  end;
+
 
   { TTagTable }
 
@@ -98,7 +151,10 @@ type
   private
     fBuffer: PGtkTextBuffer;
     function GetCharCount: Longint;
+    function GetEndIter: TTextIter;
+    function GetInsertMark: TTextMark;
     function GetLineCount: Longint;
+    function GetStartIter: TTextIter;
     function GetTagTable: TTagTable;
   protected
      class function New(aBuffer: PGtkTextBuffer): TTextBuffer; static;
@@ -108,58 +164,22 @@ type
      property CharCount: Longint read GetCharCount;
      property TagTable: TTagTable read GetTagTable;
      // TODO: What else?
+     property InsertMark: TTextMark read GetInsertMark;
+     function IterAtMark(aMark: TTextMark): TTextIter;
+     property EndIter: TTextIter read GetEndIter;
+     property StartIter: TTextIter read GetStartIter;
+     procedure SelectRange(aInsertMark: TTextIter; aBoundMark: TTextIter);
   end;
 
-  { TTextIter }
+  { TTextMarkHelper }
 
-  TTextIter = record
+  TTextMarkHelper = record helper for TTextMark
   private
-    fIter: PGtkTextIter;
-    function GetLine: Longint;
-    function GetLineIndex: Longint;
-    function GetLineOffset: Longint;
-    function GetOffset: Longint;
-    function GetVisibleLineIndex: Longint;
-    function GetVisibleLineOffset: LongInt;
-    procedure SetLine(AValue: Longint);
-    procedure SetLineIndex(AValue: Longint);
-    procedure SetLineOffset(AValue: Longint);
-    procedure SetOffset(AValue: Longint);
-    procedure SetVisibleLineIndex(AValue: Longint);
-    procedure SetVisibleLineOffset(AValue: LongInt);
-  protected
-    class function New(aIter: PGtkTextIter): TTextIter; static;
-  public
-    property Offset: Longint read GetOffset write SetOffset;
-    property Line: Longint read GetLine write SetLine;
-    property LineOffset: Longint read GetLineOffset write SetLineOffset;
-    property LineIndex: Longint read GetLineIndex write SetLineIndex;
-    property VisibleLineIndex: Longint read GetVisibleLineIndex write SetVisibleLineIndex;
-    property VisibleLineOffset: LongInt read GetVisibleLineOffset write SetVisibleLineOffset;
-    // TODO: What else?
-  end;
-
-  { TTextMark }
-
-  TTextMark = record
-  private
-    fMark: PGtkTextMark;
     function GetBuffer: TTextBuffer;
-    function GetDeleted: Boolean;
-    function GetLeftGravity: Boolean;
-    function GetName: String;
-    function GetVisible: Boolean;
-    procedure SetVisible(AValue: Boolean);
-  protected
-    class function New(aMark: PGtkTextMark): TTextMark; static;
   public
-    property LeftGravity: Boolean read GetLeftGravity;
-    property Name: String read GetName;
-    property Visible: Boolean read GetVisible write SetVisible;
-    property Deleted: Boolean read GetDeleted;
-    // TODO: Wrap...
     property Buffer: TTextBuffer read GetBuffer;
   end;
+
 
   { TTextWidget }
 
@@ -228,7 +248,7 @@ type
     procedure GetLineYRange(aIter: TTextIter; out oY: Longint; out oHeight: Longint
       );
     function GetIterAtLocation(aX: Longint; aY: Longint): TTextIter;
-    function GetIterAtPosition(var aTrailing: Longint; aX: LongInt; aY: LongInt
+    function GetIterAtPosition(var vTrailing: Longint; aX: LongInt; aY: LongInt
       ): TTextIter;
     function GetIterAtPosition(aX: LongInt; aY: LongInt
       ): TTextIter;
@@ -275,6 +295,13 @@ type
 {$ENDIF}
 implementation
 
+{ TTextMarkHelper }
+
+function TTextMarkHelper.GetBuffer: TTextBuffer;
+begin
+  result := TTextBuffer.New(gtk_text_mark_get_buffer(fMark));
+end;
+
 { TTagTable }
 
 class function TTagTable.New(aTable: PGtkTextTagTable): TTagTable;
@@ -294,9 +321,32 @@ begin
   result := gtk_text_buffer_get_char_count(fBuffer);
 end;
 
+function TTextBuffer.GetEndIter: TTextIter;
+var
+  lIter: TGtkTextIter;
+begin
+  gtk_text_buffer_get_end_iter(fBuffer,@lIter);
+  result := TTextIter.New(lIter);
+
+end;
+
+function TTextBuffer.GetInsertMark: TTextMark;
+begin
+  result := TTextMark.New(gtk_text_buffer_get_insert(fBuffer));
+end;
+
 function TTextBuffer.GetLineCount: Longint;
 begin
   result := gtk_text_buffer_get_line_count(fBuffer);
+end;
+
+function TTextBuffer.GetStartIter: TTextIter;
+var
+  lIter: TGtkTextIter;
+begin
+  gtk_text_buffer_get_start_iter(fBuffer,@lIter);
+  result := TTextIter.New(lIter);
+
 end;
 
 function TTextBuffer.GetTagTable: TTagTable;
@@ -314,90 +364,134 @@ begin
   result.fBuffer := gtk_text_buffer_new(aTagTable.fTable);
 end;
 
+function TTextBuffer.IterAtMark(aMark: TTextMark): TTextIter;
+var
+  lIter: TGtkTextIter;
+begin
+  gtk_text_buffer_get_iter_at_mark(fBuffer,@lIter,aMark.fMark);
+  result := TTextIter.New(lIter);
+end;
+
+procedure TTextBuffer.SelectRange(aInsertMark: TTextIter; aBoundMark: TTextIter
+  );
+begin
+  gtk_text_buffer_select_range(fBuffer,@aInsertMark.fIter,@aBoundMark.fIter);
+end;
+
 { TTextIter }
 
 function TTextIter.GetLine: Longint;
 begin
-  result := gtk_text_iter_get_line(fIter);
+  result := gtk_text_iter_get_line(@fIter);
 end;
 
 function TTextIter.GetLineIndex: Longint;
 begin
-  result := gtk_text_iter_get_line_index(fIter);
+  result := gtk_text_iter_get_line_index(@fIter);
 end;
 
 function TTextIter.GetLineOffset: Longint;
 begin
-  result := gtk_text_iter_get_line_offset(fIter);
+  result := gtk_text_iter_get_line_offset(@fIter);
 
 end;
 
 function TTextIter.GetOffset: Longint;
 begin
-  result := gtk_text_iter_get_offset(fIter);
+  result := gtk_text_iter_get_offset(@fIter);
 
 end;
 
 function TTextIter.GetVisibleLineIndex: Longint;
 begin
-  result := gtk_text_iter_get_visible_line_index(fIter);
+  result := gtk_text_iter_get_visible_line_index(@fIter);
 
 end;
 
 function TTextIter.GetVisibleLineOffset: LongInt;
 begin
-  result := gtk_text_iter_get_visible_line_offset(fIter);
+  result := gtk_text_iter_get_visible_line_offset(@fIter);
 
 end;
 
 procedure TTextIter.SetLine(AValue: Longint);
 begin
-  gtk_text_iter_set_line(fIter,aValue);
+  gtk_text_iter_set_line(@fIter,aValue);
 end;
 
 procedure TTextIter.SetLineIndex(AValue: Longint);
 begin
-  gtk_text_iter_set_line_index(fIter,aValue);
+  gtk_text_iter_set_line_index(@fIter,aValue);
 
 end;
 
 procedure TTextIter.SetLineOffset(AValue: Longint);
 begin
-  gtk_text_iter_set_line_offset(fIter,aValue);
+  gtk_text_iter_set_line_offset(@fIter,aValue);
 
 end;
 
 procedure TTextIter.SetOffset(AValue: Longint);
 begin
-  gtk_text_iter_set_offset(fIter,aValue);
+  gtk_text_iter_set_offset(@fIter,aValue);
 
 end;
 
 procedure TTextIter.SetVisibleLineIndex(AValue: Longint);
 begin
-  gtk_text_iter_set_visible_line_index(fIter,aValue);
+  gtk_text_iter_set_visible_line_index(@fIter,aValue);
 
 end;
 
 procedure TTextIter.SetVisibleLineOffset(AValue: LongInt);
 begin
-  gtk_text_iter_set_visible_line_offset(fIter,aValue);
+  gtk_text_iter_set_visible_line_offset(@fIter,aValue);
 
 end;
 
-class function TTextIter.New(aIter: PGtkTextIter): TTextIter;
+class function TTextIter.New(aIter: TGtkTextIter): TTextIter;
 begin
   result.fIter := aIter;
+end;
+
+function TTextIter.ForwardSearch(aNeedle: UTF8String; aFlags: TSearchFlags; out
+  oMatchStart: TTextIter; out oMatchEnd: TTextIter; aLimit: TTextIter): Boolean;
+var
+  lSearchFlags: TGtkTextSearchFlags;
+  lMatchStart: TGtkTextIter;
+  lMatchEnd: TGtkTextIter;
+begin
+  lSearchFlags := 0;
+  if sfTextOnly in aFlags then
+     lSearchFlags := GTK_TEXT_SEARCH_TEXT_ONLY;
+  if sfVisibleOnly in aFlags then
+     lSearchFlags := lSearchFlags and GTK_TEXT_SEARCH_VISIBLE_ONLY;
+  result := gtk_text_iter_forward_search(@fIter,PChar(aNeedle),lSearchFlags,@lMatchStart,@lMatchEnd,@aLimit.fIter);
+  oMatchStart := TTextIter.New(lMatchStart);
+  oMatchEnd := TTextIter.New(lMatchEnd);
+end;
+
+function TTextIter.BackwardSearch(aNeedle: UTF8String; aFlags: TSearchFlags;
+  out oMatchStart: TTextIter; out oMatchEnd: TTextIter; aLimit: TTextIter
+  ): Boolean;
+var
+  lSearchFlags: TGtkTextSearchFlags;
+  lMatchStart: TGtkTextIter;
+  lMatchEnd: TGtkTextIter;
+begin
+  lSearchFlags := 0;
+  if sfTextOnly in aFlags then
+     lSearchFlags := GTK_TEXT_SEARCH_TEXT_ONLY;
+  if sfVisibleOnly in aFlags then
+     lSearchFlags := lSearchFlags and GTK_TEXT_SEARCH_VISIBLE_ONLY;
+  result := gtk_text_iter_backward_search(@fIter,PChar(aNeedle),lSearchFlags,@lMatchStart,@lMatchEnd,@aLimit.fIter);
+  oMatchStart := TTextIter.New(lMatchStart);
+  oMatchEnd := TTextIter.New(lMatchEnd);
 end;
 
 {$IFDEF LCLGTK2}
 
 { TTextMark }
-
-function TTextMark.GetBuffer: TTextBuffer;
-begin
-  result := TTextBuffer.New(gtk_text_mark_get_buffer(fMark));
-end;
 
 function TTextMark.GetDeleted: Boolean;
 begin
@@ -632,7 +726,7 @@ end;
 function TTextWidget.ScrollToIter(aIter: TTextIter; aWithinMargin: Double;
   aUseAlign: Boolean; aXAlign: Double; aYAlign: Double): Boolean;
 begin
-  result := gtk_text_view_scroll_to_iter(TextView,aIter.fIter,aWithinMargin,aUseAlign,aXAlign,aYAlign);
+  result := gtk_text_view_scroll_to_iter(TextView,@aIter.fIter,aWithinMargin,aUseAlign,aXAlign,aYAlign);
 end;
 
 procedure TTextWidget.ScrollMarkOnscreen(aMark: TTextMark);
@@ -651,94 +745,78 @@ begin
 end;
 
 function TTextWidget.GetIterLocation(aIter: TTextIter): TGdkRectangle;
-var
-  lResult: PGdkRectangle;
 begin
-  gtk_text_view_get_iter_location(TextView,aIter.fIter,lResult{%H-});
-  Result.height:= lResult^.height;
-  Result.width := lResult^.width;
-  Result.x:= lResult^.x;
-  Result.y := lResult^.y;
+  gtk_text_view_get_iter_location(TextView,@aIter.fIter,@Result);
 
 end;
 
 function TTextWidget.GetLineAtY(aY: Longint; out oLineTop: LongInt): TTextIter;
 var
-  lIter: PGtkTextIter;
-  lLineTop: Pgint;
+  lIter: TGtkTextIter;
 begin
-  gtk_text_view_get_line_at_y(TextView,lIter{%H-},aY,lLineTop{%H-});
-  oLineTop := lLineTop^;
+  gtk_text_view_get_line_at_y(TextView,@lIter,aY,@oLineTop);
   result := TTextIter.New(lIter);
 end;
 
 procedure TTextWidget.GetLineYRange(aIter: TTextIter; out oY: Longint; out oHeight: Longint);
-var
-  lY: Pgint;
-  lHeight: Pgint;
 begin
-  gtk_text_view_get_line_yrange(TextView,aIter.fIter,lY{%H-},lHeight{%H-});
-  oY := lY^;
-  oHeight:=lHeight^;
+  gtk_text_view_get_line_yrange(TextView,@aIter.fIter,@oY,@oHeight);
 end;
 
 function TTextWidget.GetIterAtLocation(aX: Longint; aY: Longint): TTextIter;
 var
-  lIter: PGtkTextIter;
+  lIter: TGtkTextIter;
 begin
-  gtk_text_view_get_iter_at_location(TextView,lIter{%H-},aX,aY);
+  gtk_text_view_get_iter_at_location(TextView,@lIter,aX,aY);
   result := TTextIter.New(lIter);
 
 end;
 
-function TTextWidget.GetIterAtPosition(var aTrailing: Longint;
+function TTextWidget.GetIterAtPosition(var vTrailing: Longint;
   aX: LongInt; aY: LongInt): TTextIter;
 var
-  lIter: PGtkTextIter;
-  lTrailing: Pgint;
+  lIter: TGtkTextIter;
 begin
-  lTrailing := @aTrailing;
-  gtk_text_view_get_iter_at_position(TextView,lIter{%H-},lTrailing,aX,aY);
-  aTrailing := lTrailing^;
+  gtk_text_view_get_iter_at_position(TextView,@lIter,@vTrailing,aX,aY);
   result := TTextIter.New(lIter);
 end;
 
 function TTextWidget.GetIterAtPosition(aX: LongInt; aY: LongInt): TTextIter;
 var
-  lIter: PGtkTextIter;
+  lIter: TGtkTextIter;
 begin
-  gtk_text_view_get_iter_at_position(TextView,lIter{%H-},nil,aX,aY);
+  gtk_text_view_get_iter_at_position(TextView,@lIter,nil,aX,aY);
   result := TTextIter.New(lIter);
 end;
 
 function TTextWidget.ForwardDisplayLine(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_forward_display_line(TextView,aIter.fIter);
+  result := gtk_text_view_forward_display_line(TextView,@aIter.fIter);
 end;
 
 function TTextWidget.BackwardDisplayLine(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_backward_display_line(TextView,aIter.fIter);
+  result := gtk_text_view_backward_display_line(TextView,@aIter.fIter);
 end;
 
 function TTextWidget.ForwardDisplayLineEnd(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_forward_display_line_end(TextView,aIter.fIter);
+  result := gtk_text_view_forward_display_line_end(TextView,@aIter.fIter);
 end;
 
 function TTextWidget.BackwardDisplayLineStart(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_backward_display_line_start(TextView,aIter.fIter);
+  result := gtk_text_view_backward_display_line_start(TextView,@aIter.fIter);
 end;
 
 function TTextWidget.StartsDisplayLine(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_starts_display_line(TextView,aIter.fIter);
+  result := gtk_text_view_starts_display_line(TextView,@aIter.fIter);
 end;
 
 function TTextWidget.MoveVisually(aIter: TTextIter; aCount: Longint): Boolean;
 begin
-  result := gtk_text_view_move_visually(TextView,aIter.fIter,aCount);
+  result := gtk_text_view_move_visually(TextView,@aIter.fIter,aCount);
 end;
 
 // TODO: This wasn't declared in gtktextview.inc, why?
