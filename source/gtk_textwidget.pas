@@ -169,6 +169,7 @@ type
      property EndIter: TTextIter read GetEndIter;
      property StartIter: TTextIter read GetStartIter;
      procedure SelectRange(aInsertMark: TTextIter; aBoundMark: TTextIter);
+     procedure SelectionBounds(out oStart: TTextIter; out oEnd: TTextIter);
   end;
 
   { TTextMarkHelper }
@@ -216,9 +217,6 @@ type
   protected
     property TextView: PGtkTextView read GetTextView;
   public
-    // TODO: Set Buffer? Probably, but I have to make sure the old one gets
-    // freed when I set it, and even then only if it's owned by me.
-    // TODO: Wrap
     property Buffer: TTextBuffer read GetBuffer write SetBuffer;
     {
     Creates a new buffer for this widget (clearing all data) with the
@@ -376,6 +374,18 @@ procedure TTextBuffer.SelectRange(aInsertMark: TTextIter; aBoundMark: TTextIter
   );
 begin
   gtk_text_buffer_select_range(fBuffer,@aInsertMark.fIter,@aBoundMark.fIter);
+end;
+
+procedure TTextBuffer.SelectionBounds(out oStart: TTextIter; out oEnd: TTextIter);
+var
+  lStart: TGtkTextIter;
+  lEnd: TGtkTextIter;
+begin
+  gtk_text_buffer_get_selection_bounds(fBuffer,@lStart,@lEnd);
+  oStart := TTextIter.New(lStart);
+  oEnd := TTextIter.New(lEnd);
+
+
 end;
 
 { TTextIter }

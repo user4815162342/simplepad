@@ -99,30 +99,33 @@ function TGTKTextWidgetFrame.FindReplace(aSearchText: String;
 var
   lStart: TTextIter;
   lCurrent: TTextIter;
+  lSelStart: TTextIter;
+  lSelEnd: TTextIter;
   lMatchStart: TTextIter;
   lMatchEnd: TTextIter;
 
 begin
-  lCurrent := fTextView.Buffer.IterAtMark(fTextView.Buffer.InsertMark);
+  // TODO: I think I need to use the selection end instead.
+  fTextView.Buffer.SelectionBounds(lSelStart,lSelEnd);
   if aForward then
   begin
     if aWrap then
     begin
       lStart := fTextView.Buffer.StartIter;
-      result := lStart.ForwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,lCurrent);
+      result := lStart.ForwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,lSelStart);
     end
     else
-      result := lCurrent.ForwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,fTextView.Buffer.EndIter);
+      result := lSelEnd.ForwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,fTextView.Buffer.EndIter);
   end
   else
   begin
     if aWrap then
     begin
       lStart := fTextView.Buffer.EndIter;
-      result := lStart.BackwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,lCurrent);
+      result := lStart.BackwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,lSelEnd);
     end
     else
-      result := lCurrent.BackwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,fTextView.Buffer.StartIter);
+      result := lSelStart.BackwardSearch(aSearchText,[sfTextOnly,sfVisibleOnly],lMatchStart,lMatchEnd,fTextView.Buffer.StartIter);
   end;
 
   if result then
