@@ -1,12 +1,13 @@
 unit gtk_textwidget;
 
 {$mode objfpc}{$H+}
+{$modeswitch advancedrecords}
 
 interface
 
 {$IFDEF LCLGTK2}
 uses
-  Classes, SysUtils, RichMemo, gtk2, gdk2, glib2, pango, Gtk2RichMemo, graphics;
+  Classes, SysUtils, RichMemo, gtk2, gdk2, glib2, Gtk2RichMemo, graphics;
 
 type
   {
@@ -55,21 +56,118 @@ type
   TODO: If this works, move it into a separate component, handling it via the
   usual widgetset system (where the widget is backed by a singleton class which
   handles the widget). Basically, it would descend from TCustomMemo, so that
-  I don't have the extra TRichMemo stuff.
+  I don't have the extra TRichMemo stuff. Heck, I might even descend from something
+  even higher up, such as TWinControl, so I can stick to just properties which
+  are necessary. This would also make the sharing of buffers and tag tables
+  easier, since I could add these before the widget handle is created.
 
   https://developer.gnome.org/gtk2/stable/TextWidget.html
+  }
+
+  {
+  NOTE: I've implemented the various associated non-widget objects as advanced records
+  with references to the pointers that they are associated with. This is for two
+  reasons:
+  1) I don't want to keep creating objects whenever this data is retrieved, so
+  I'd have to cache the object when it's created, and that starts to get messy when
+  you're passing around buffers between widgets.
+  2) I want to keep the memory management of those things in GTK itself, so the
+  programmer doesn't have to worry about that. This means that, if the user wants,
+  they don't even have to create their own objects, they can just access them through
+  TextWidgets themselves (even sharing buffers and tag tables). Therefore, the
+  pointer references themselves can be allocated on the stack.
   }
 
   TTextJustification = (tjLeft, tjRight, tjCenter, tjFill);
   TWrapMode = (wmNone, wmChar, wmWord, wmWordChar);
 
-  { TGTKTextWidget }
+  { TTagTable }
 
-  TGTKTextWidget = class(TRichMemo)
+  TTagTable = record
+  private
+    fTable: PGtkTextTagTable;
+  protected
+    class function New(aTable: PGtkTextTagTable): TTagTable; static;
+  public
+    class function New: TTagTable; static;
+  end;
+
+  { TTextBuffer }
+
+  TTextBuffer = record
+  private
+    fBuffer: PGtkTextBuffer;
+    function GetCharCount: Longint;
+    function GetLineCount: Longint;
+    function GetTagTable: TTagTable;
+  protected
+     class function New(aBuffer: PGtkTextBuffer): TTextBuffer; static;
+  public
+     class function New(aTagTable: TTagTable): TTextBuffer; static;
+     property LineCount: Longint read GetLineCount;
+     property CharCount: Longint read GetCharCount;
+     property TagTable: TTagTable read GetTagTable;
+     // TODO: What else?
+  end;
+
+  { TTextIter }
+
+  TTextIter = record
+  private
+    fIter: PGtkTextIter;
+    function GetLine: Longint;
+    function GetLineIndex: Longint;
+    function GetLineOffset: Longint;
+    function GetOffset: Longint;
+    function GetVisibleLineIndex: Longint;
+    function GetVisibleLineOffset: LongInt;
+    procedure SetLine(AValue: Longint);
+    procedure SetLineIndex(AValue: Longint);
+    procedure SetLineOffset(AValue: Longint);
+    procedure SetOffset(AValue: Longint);
+    procedure SetVisibleLineIndex(AValue: Longint);
+    procedure SetVisibleLineOffset(AValue: LongInt);
+  protected
+    class function New(aIter: PGtkTextIter): TTextIter; static;
+  public
+    property Offset: Longint read GetOffset write SetOffset;
+    property Line: Longint read GetLine write SetLine;
+    property LineOffset: Longint read GetLineOffset write SetLineOffset;
+    property LineIndex: Longint read GetLineIndex write SetLineIndex;
+    property VisibleLineIndex: Longint read GetVisibleLineIndex write SetVisibleLineIndex;
+    property VisibleLineOffset: LongInt read GetVisibleLineOffset write SetVisibleLineOffset;
+    // TODO: What else?
+  end;
+
+  { TTextMark }
+
+  TTextMark = record
+  private
+    fMark: PGtkTextMark;
+    function GetBuffer: TTextBuffer;
+    function GetDeleted: Boolean;
+    function GetLeftGravity: Boolean;
+    function GetName: String;
+    function GetVisible: Boolean;
+    procedure SetVisible(AValue: Boolean);
+  protected
+    class function New(aMark: PGtkTextMark): TTextMark; static;
+  public
+    property LeftGravity: Boolean read GetLeftGravity;
+    property Name: String read GetName;
+    property Visible: Boolean read GetVisible write SetVisible;
+    property Deleted: Boolean read GetDeleted;
+    // TODO: Wrap...
+    property Buffer: TTextBuffer read GetBuffer;
+  end;
+
+  { TTextWidget }
+
+  TTextWidget = class(TRichMemo)
   private
     function GetAcceptsTab: Boolean;
     // TODO: Wrap...
-    function GetBuffer: PGtkTextBuffer;
+    function GetBuffer: TTextBuffer;
     function GetCursorVisible: Boolean;
     function GetEditable: Boolean;
     function GetIndent: Longint;
@@ -80,11 +178,10 @@ type
     function GetPixelsBelowLines: Longint;
     function GetPixelsInsideWrap: Longint;
     function GetRightMargin: Longint;
-    // TODO: Wrap
-    function GetTabs: TPangoTabArray;
     function GetTextView: PGtkTextView;
     function GetWrapMode: TWrapMode;
     procedure SetAcceptsTab(AValue: Boolean);
+    procedure SetBuffer(AValue: TTextBuffer);
     procedure SetCursorVisible(AValue: Boolean);
     procedure SetEditable(AValue: Boolean);
     procedure SetIndent(AValue: Longint);
@@ -95,8 +192,6 @@ type
     procedure SetPixelsBelowLines(AValue: Longint);
     procedure SetPixelsInsideWrap(AValue: Longint);
     procedure SetRightMargin(AValue: Longint);
-    // TODO: Wrap
-    procedure SetTabs(AValue: TPangoTabArray);
     procedure SetWrapMode(AValue: TWrapMode);
   protected
     property TextView: PGtkTextView read GetTextView;
@@ -104,47 +199,51 @@ type
     // TODO: Set Buffer? Probably, but I have to make sure the old one gets
     // freed when I set it, and even then only if it's owned by me.
     // TODO: Wrap
-    property Buffer: PGtkTextBuffer read GetBuffer;
-    // TODO: Wrap
-    procedure ScrollToMark(aMark: PGtkTextMark; aWithinMargin: Double;
+    property Buffer: TTextBuffer read GetBuffer write SetBuffer;
+    {
+    Creates a new buffer for this widget (clearing all data) with the
+    given tag table backing.
+
+    This one gets around a problem with our architecture, and can hopefully
+    disappear if I descend directly from TWinControl. Basically, I want to
+    be able to share tag tables between buffers. However, the buffer is
+    already created in CreateWnd. I can 'set' the buffer above, but that
+    only allows me to share a buffer between two widgets, not the tag table
+    between two buffers.
+
+    What I *should* be able to do is provide a tag table or a buffer before
+    the TextView is actually created, and have it assign those.
+    }
+    procedure NewBufferWithTagTable(aTable: TTagTable);
+    procedure ScrollToMark(aMark: TTextMark; aWithinMargin: Double;
       aUseAlign: Boolean; aXAlign: Double; aYAlign: Double);
-    // TODO: Wrap
-    function ScrollToIter(aIter: PGtkTextIter; aWithinMargin: Double;
+    function ScrollToIter(aIter: TTextIter; aWithinMargin: Double;
       aUseAlign: Boolean; aXAlign: Double; aYAlign: Double): Boolean;
-    // TODO: Wrap
-    procedure ScrollMarkOnscreen(aMark: PGtkTextMark);
-    // TODO: Wrap
-    function MoveMarkOnscreen(aMark: PGtkTextMark): Boolean;
+    procedure ScrollMarkOnscreen(aMark: TTextMark);
+    function MoveMarkOnscreen(aMark: TTextMark): Boolean;
     function PlaceCursorOnscreen: Boolean;
     //void 	gtk_text_view_get_visible_rect ()
-    // TODO: Wrap
-    procedure GetIterLocation(aIter: PGtkTextIter; aLocation: PGdkRectangle);
-    // TODO: Wrap
-    procedure GetLineAtY(aIter: PGtkTextIter; aY: Longint; aLineTop: Pgint);
-    // TODO: Wrap
-    procedure GetLineYRange(aIter: PGtkTextIter; y: Pgint; aheight: Pgint);
-    // TODO: Wrap
-    procedure GetIterAtLocation(aIter: PGtkTextIter; aLocation: PGdkRectangle);
-    // TODO: Wrap
-    procedure GetIterAtPosition(aIter: PGtkTextIter; aTrailing: Pgint; aX: LongInt;
-      aY: LongInt);
+    function GetIterLocation(aIter: TTextIter): TGdkRectangle;
+    function GetLineAtY(aY: Longint; out oLineTop: LongInt): TTextIter;
+    procedure GetLineYRange(aIter: TTextIter; out oY: Longint; out oHeight: Longint
+      );
+    function GetIterAtLocation(aX: Longint; aY: Longint): TTextIter;
+    function GetIterAtPosition(var aTrailing: Longint; aX: LongInt; aY: LongInt
+      ): TTextIter;
+    function GetIterAtPosition(aX: LongInt; aY: LongInt
+      ): TTextIter;
     //void 	gtk_text_view_buffer_to_window_coords ()
     //void 	gtk_text_view_window_to_buffer_coords ()
     //GdkWindow * 	gtk_text_view_get_window ()
     //GtkTextWindowType 	gtk_text_view_get_window_type ()
     //void 	gtk_text_view_set_border_window_size ()
     //gint 	gtk_text_view_get_border_window_size ()
-    // TODO: Wrap
-    function ForwardDisplayLine(aIter: PGtkTextIter): Boolean;
-    // TODO: Wrap
-    function BackwardDisplayLine(aIter: PGtkTextIter): Boolean;
-    // TODO: Wrap
-    function ForwardDisplayLineEnd(aIter: PGtkTextIter): Boolean;
-    function BackwardDisplayLineStart(aIter: PGtkTextIter): Boolean;
-    // TODO: Wrap
-    function StartsDisplayLine(aIter: PGtkTextIter): Boolean;
-    // TODO: Wrap
-    function MoveVisually(aIter: PGtkTextIter; aCount: Longint): Boolean;
+    function ForwardDisplayLine(aIter: TTextIter): Boolean;
+    function BackwardDisplayLine(aIter: TTextIter): Boolean;
+    function ForwardDisplayLineEnd(aIter: TTextIter): Boolean;
+    function BackwardDisplayLineStart(aIter: TTextIter): Boolean;
+    function StartsDisplayLine(aIter: TTextIter): Boolean;
+    function MoveVisually(aIter: TTextIter; aCount: Longint): Boolean;
     //void 	gtk_text_view_add_child_at_anchor ()
     //GtkTextChildAnchor * 	gtk_text_child_anchor_new ()
     //GList * 	gtk_text_child_anchor_get_widgets ()
@@ -162,51 +261,202 @@ type
     property LeftMargin: Longint read GetLeftMargin write SetLeftMargin;
     property RightMargin: Longint read GetRightMargin write SetRightMargin;
     property Indent: Longint read GetIndent write SetIndent;
-    property Tabs: TPangoTabArray read GetTabs write SetTabs;
     property AcceptsTab: Boolean read GetAcceptsTab write SetAcceptsTab;
-   //GtkTextAttributes* gtk_text_view_get_default_attributes (GtkTextView *text_view);
+    //void 	gtk_text_view_set_tabs ()
+    //PangoTabArray* 	gtk_text_view_get_tabs ()
+    //GtkTextAttributes* gtk_text_view_get_default_attributes (GtkTextView *text_view);
     // TODO: Wrap
     function ImContextFilterKeypress(aEvent: PGdkEventKey): Boolean;
     procedure ResetImContext;
-    // TODO: Wrap
-    function GetHAdjustment: PGtkAdjustment;
-    // TODO: Wrap
-    function GetVAdjustment: PGtkAdjustment;
+    //GtkAdjustment * 	gtk_text_view_get_hadjustment ()
+    //GtkAdjustment * 	gtk_text_view_get_vadjustment ()
   end;
 
 {$ENDIF}
 implementation
 
+{ TTagTable }
+
+class function TTagTable.New(aTable: PGtkTextTagTable): TTagTable;
+begin
+  result.fTable := aTable;
+end;
+
+class function TTagTable.New: TTagTable;
+begin
+  result.fTable := gtk_text_tag_table_new;
+end;
+
+{ TTextBuffer }
+
+function TTextBuffer.GetCharCount: Longint;
+begin
+  result := gtk_text_buffer_get_char_count(fBuffer);
+end;
+
+function TTextBuffer.GetLineCount: Longint;
+begin
+  result := gtk_text_buffer_get_line_count(fBuffer);
+end;
+
+function TTextBuffer.GetTagTable: TTagTable;
+begin
+  result := TTagTable.New(gtk_text_buffer_get_tag_table(fBuffer));
+end;
+
+class function TTextBuffer.New(aBuffer: PGtkTextBuffer): TTextBuffer;
+begin
+  result.fBuffer := aBuffer;
+end;
+
+class function TTextBuffer.New(aTagTable: TTagTable): TTextBuffer;
+begin
+  result.fBuffer := gtk_text_buffer_new(aTagTable.fTable);
+end;
+
+{ TTextIter }
+
+function TTextIter.GetLine: Longint;
+begin
+  result := gtk_text_iter_get_line(fIter);
+end;
+
+function TTextIter.GetLineIndex: Longint;
+begin
+  result := gtk_text_iter_get_line_index(fIter);
+end;
+
+function TTextIter.GetLineOffset: Longint;
+begin
+  result := gtk_text_iter_get_line_offset(fIter);
+
+end;
+
+function TTextIter.GetOffset: Longint;
+begin
+  result := gtk_text_iter_get_offset(fIter);
+
+end;
+
+function TTextIter.GetVisibleLineIndex: Longint;
+begin
+  result := gtk_text_iter_get_visible_line_index(fIter);
+
+end;
+
+function TTextIter.GetVisibleLineOffset: LongInt;
+begin
+  result := gtk_text_iter_get_visible_line_offset(fIter);
+
+end;
+
+procedure TTextIter.SetLine(AValue: Longint);
+begin
+  gtk_text_iter_set_line(fIter,aValue);
+end;
+
+procedure TTextIter.SetLineIndex(AValue: Longint);
+begin
+  gtk_text_iter_set_line_index(fIter,aValue);
+
+end;
+
+procedure TTextIter.SetLineOffset(AValue: Longint);
+begin
+  gtk_text_iter_set_line_offset(fIter,aValue);
+
+end;
+
+procedure TTextIter.SetOffset(AValue: Longint);
+begin
+  gtk_text_iter_set_offset(fIter,aValue);
+
+end;
+
+procedure TTextIter.SetVisibleLineIndex(AValue: Longint);
+begin
+  gtk_text_iter_set_visible_line_index(fIter,aValue);
+
+end;
+
+procedure TTextIter.SetVisibleLineOffset(AValue: LongInt);
+begin
+  gtk_text_iter_set_visible_line_offset(fIter,aValue);
+
+end;
+
+class function TTextIter.New(aIter: PGtkTextIter): TTextIter;
+begin
+  result.fIter := aIter;
+end;
+
 {$IFDEF LCLGTK2}
 
-{ TGTKTextWidget }
+{ TTextMark }
 
-function TGTKTextWidget.GetAcceptsTab: Boolean;
+function TTextMark.GetBuffer: TTextBuffer;
+begin
+  result := TTextBuffer.New(gtk_text_mark_get_buffer(fMark));
+end;
+
+function TTextMark.GetDeleted: Boolean;
+begin
+  result := gtk_text_mark_get_deleted(fMark);
+end;
+
+function TTextMark.GetLeftGravity: Boolean;
+begin
+  result := gtk_text_mark_get_left_gravity(fMark);
+end;
+
+function TTextMark.GetName: String;
+begin
+  result := gtk_text_mark_get_name(fMark);
+end;
+
+function TTextMark.GetVisible: Boolean;
+begin
+  result := gtk_text_mark_get_visible(fMark);
+end;
+
+procedure TTextMark.SetVisible(AValue: Boolean);
+begin
+  gtk_text_mark_set_visible(fMark,AValue);
+end;
+
+class function TTextMark.New(aMark: PGtkTextMark): TTextMark;
+begin
+  result.fMark := aMark;
+end;
+
+{ TTextWidget }
+
+function TTextWidget.GetAcceptsTab: Boolean;
 begin
   result := gtk_text_view_get_accepts_tab(TextView);
 end;
 
-function TGTKTextWidget.GetBuffer: PGtkTextBuffer;
+function TTextWidget.GetBuffer: TTextBuffer;
 begin
-  result := gtk_text_view_get_buffer(TextView);
+  result := TTextBuffer.New(gtk_text_view_get_buffer(TextView));
 end;
 
-function TGTKTextWidget.GetCursorVisible: Boolean;
+function TTextWidget.GetCursorVisible: Boolean;
 begin
   result := gtk_text_view_get_cursor_visible(TextView);
 end;
 
-function TGTKTextWidget.GetEditable: Boolean;
+function TTextWidget.GetEditable: Boolean;
 begin
   result := gtk_text_view_get_editable(TextView);
 end;
 
-function TGTKTextWidget.GetIndent: Longint;
+function TTextWidget.GetIndent: Longint;
 begin
   result := gtk_text_view_get_indent(TextView);
 end;
 
-function TGTKTextWidget.GetJustification: TTextJustification;
+function TTextWidget.GetJustification: TTextJustification;
 begin
   case gtk_text_view_get_justification(TextView) of
     GTK_JUSTIFY_LEFT:
@@ -220,42 +470,37 @@ begin
   end;
 end;
 
-function TGTKTextWidget.GetLeftMargin: Longint;
+function TTextWidget.GetLeftMargin: Longint;
 begin
   result := gtk_text_view_get_left_margin(TextView);
 end;
 
-function TGTKTextWidget.GetOverwrite: Boolean;
+function TTextWidget.GetOverwrite: Boolean;
 begin
   result := gtk_text_view_get_overwrite(TextView);
 end;
 
-function TGTKTextWidget.GetPixelsAboveLines: Longint;
+function TTextWidget.GetPixelsAboveLines: Longint;
 begin
   result := gtk_text_view_get_pixels_above_lines(TextView);
 end;
 
-function TGTKTextWidget.GetPixelsBelowLines: Longint;
+function TTextWidget.GetPixelsBelowLines: Longint;
 begin
   result := gtk_text_view_get_pixels_below_lines(TextView);
 end;
 
-function TGTKTextWidget.GetPixelsInsideWrap: Longint;
+function TTextWidget.GetPixelsInsideWrap: Longint;
 begin
   result := gtk_text_view_get_pixels_inside_wrap(TextView);
 end;
 
-function TGTKTextWidget.GetRightMargin: Longint;
+function TTextWidget.GetRightMargin: Longint;
 begin
   result := gtk_text_view_get_right_margin(TextView);
 end;
 
-function TGTKTextWidget.GetTabs: TPangoTabArray;
-begin
-  result := gtk_text_view_get_tabs(TextView);
-end;
-
-function TGTKTextWidget.GetTextView: PGtkTextView;
+function TTextWidget.GetTextView: PGtkTextView;
 var
   Widget     : PGtkWidget;
   list       : PGList;
@@ -269,7 +514,7 @@ begin
   result := PGtkTextView(list^.data);
 end;
 
-function TGTKTextWidget.GetWrapMode: TWrapMode;
+function TTextWidget.GetWrapMode: TWrapMode;
 begin
   case gtk_text_view_get_wrap_mode(TextView) of
     GTK_WRAP_NONE:
@@ -281,27 +526,34 @@ begin
   end;
 end;
 
-procedure TGTKTextWidget.SetAcceptsTab(AValue: Boolean);
+procedure TTextWidget.SetAcceptsTab(AValue: Boolean);
 begin
   gtk_text_view_set_accepts_tab(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetCursorVisible(AValue: Boolean);
+procedure TTextWidget.SetBuffer(AValue: TTextBuffer);
+begin
+  // In theory, the only way a new buffer would be created is if it came
+  // from another TTextWidget. So, I'll let GTK manage the memory.
+  gtk_text_view_set_buffer(TextView,AValue.fBuffer);
+end;
+
+procedure TTextWidget.SetCursorVisible(AValue: Boolean);
 begin
   gtk_text_view_set_cursor_visible(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetEditable(AValue: Boolean);
+procedure TTextWidget.SetEditable(AValue: Boolean);
 begin
   gtk_text_view_set_editable(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetIndent(AValue: Longint);
+procedure TTextWidget.SetIndent(AValue: Longint);
 begin
   gtk_text_view_set_indent(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetJustification(AValue: TTextJustification);
+procedure TTextWidget.SetJustification(AValue: TTextJustification);
 var
   lValue: TGtkJustification;
 begin
@@ -318,42 +570,37 @@ begin
   gtk_text_view_set_justification(TextView,lValue);
 end;
 
-procedure TGTKTextWidget.SetLeftMargin(AValue: Longint);
+procedure TTextWidget.SetLeftMargin(AValue: Longint);
 begin
   gtk_text_view_set_left_margin(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetOverwrite(AValue: Boolean);
+procedure TTextWidget.SetOverwrite(AValue: Boolean);
 begin
   gtk_text_view_set_overwrite(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetPixelsAboveLines(AValue: Longint);
+procedure TTextWidget.SetPixelsAboveLines(AValue: Longint);
 begin
   gtk_text_view_set_pixels_above_lines(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetPixelsBelowLines(AValue: Longint);
+procedure TTextWidget.SetPixelsBelowLines(AValue: Longint);
 begin
   gtk_text_view_set_pixels_below_lines(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetPixelsInsideWrap(AValue: Longint);
+procedure TTextWidget.SetPixelsInsideWrap(AValue: Longint);
 begin
   gtk_text_view_set_pixels_inside_wrap(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetRightMargin(AValue: Longint);
+procedure TTextWidget.SetRightMargin(AValue: Longint);
 begin
   gtk_text_view_set_right_margin(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetTabs(AValue: TPangoTabArray);
-begin
-  gtk_text_view_set_tabs(TextView,AValue);
-end;
-
-procedure TGTKTextWidget.SetWrapMode(AValue: TWrapMode);
+procedure TTextWidget.SetWrapMode(AValue: TWrapMode);
 var
   lValue: TGtkWrapMode;
 begin
@@ -368,93 +615,136 @@ begin
   gtk_text_view_set_wrap_mode(TextView,lValue);
 end;
 
-procedure TGTKTextWidget.ScrollToMark(aMark: PGtkTextMark; aWithinMargin: Double; aUseAlign: Boolean; aXAlign: Double; aYAlign: Double);
+procedure TTextWidget.NewBufferWithTagTable(aTable: TTagTable);
+var
+  lBuffer: PGtkTextBuffer;
 begin
-  gtk_text_view_scroll_to_mark(TextView,aMark,aWithinMargin,aUseAlign,aXAlign,aYAlign);
+  lBuffer := gtk_text_buffer_new(aTable.fTable);
+  gtk_text_view_set_buffer(TextView,lBuffer);
 end;
 
-function TGTKTextWidget.ScrollToIter(aIter: PGtkTextIter; aWithinMargin: Double; aUseAlign: Boolean; aXAlign: Double; aYAlign: Double): Boolean;
+procedure TTextWidget.ScrollToMark(aMark: TTextMark; aWithinMargin: Double;
+  aUseAlign: Boolean; aXAlign: Double; aYAlign: Double);
 begin
-  result := gtk_text_view_scroll_to_iter(TextView,aIter,aWithinMargin,aUseAlign,aXAlign,aYAlign);
+  gtk_text_view_scroll_to_mark(TextView,aMark.fMark,aWithinMargin,aUseAlign,aXAlign,aYAlign);
 end;
 
-procedure TGTKTextWidget.ScrollMarkOnscreen(aMark: PGtkTextMark);
+function TTextWidget.ScrollToIter(aIter: TTextIter; aWithinMargin: Double;
+  aUseAlign: Boolean; aXAlign: Double; aYAlign: Double): Boolean;
 begin
-  gtk_text_view_scroll_mark_onscreen(TextView,aMark);
+  result := gtk_text_view_scroll_to_iter(TextView,aIter.fIter,aWithinMargin,aUseAlign,aXAlign,aYAlign);
 end;
 
-function TGTKTextWidget.MoveMarkOnscreen(aMark: PGtkTextMark): Boolean;
+procedure TTextWidget.ScrollMarkOnscreen(aMark: TTextMark);
 begin
-  result := gtk_text_view_move_mark_onscreen(TextView,aMark);
+  gtk_text_view_scroll_mark_onscreen(TextView,aMark.fMark);
 end;
 
-function TGTKTextWidget.PlaceCursorOnscreen: Boolean;
+function TTextWidget.MoveMarkOnscreen(aMark: TTextMark): Boolean;
+begin
+  result := gtk_text_view_move_mark_onscreen(TextView,aMark.fMark);
+end;
+
+function TTextWidget.PlaceCursorOnscreen: Boolean;
 begin
   result := gtk_text_view_place_cursor_onscreen(TextView);
 end;
 
-procedure TGTKTextWidget.GetIterLocation(aIter: PGtkTextIter; aLocation: PGdkRectangle);
+function TTextWidget.GetIterLocation(aIter: TTextIter): TGdkRectangle;
+var
+  lResult: PGdkRectangle;
 begin
-  gtk_text_view_get_iter_location(TextView,aIter,aLocation);
+  gtk_text_view_get_iter_location(TextView,aIter.fIter,lResult{%H-});
+  Result.height:= lResult^.height;
+  Result.width := lResult^.width;
+  Result.x:= lResult^.x;
+  Result.y := lResult^.y;
 
 end;
 
-procedure TGTKTextWidget.GetLineAtY(aIter: PGtkTextIter; aY: Longint; aLineTop: Pgint);
+function TTextWidget.GetLineAtY(aY: Longint; out oLineTop: LongInt): TTextIter;
+var
+  lIter: PGtkTextIter;
+  lLineTop: Pgint;
 begin
-  gtk_text_view_get_line_at_y(TextView,aIter,aY,aLineTop);
+  gtk_text_view_get_line_at_y(TextView,lIter{%H-},aY,lLineTop{%H-});
+  oLineTop := lLineTop^;
+  result := TTextIter.New(lIter);
 end;
 
-procedure TGTKTextWidget.GetLineYRange(aIter: PGtkTextIter; y: Pgint;
-  aheight: Pgint);
+procedure TTextWidget.GetLineYRange(aIter: TTextIter; out oY: Longint; out oHeight: Longint);
+var
+  lY: Pgint;
+  lHeight: Pgint;
 begin
-  gtk_text_view_get_line_yrange(TextView,aIter,y,aheight);
+  gtk_text_view_get_line_yrange(TextView,aIter.fIter,lY{%H-},lHeight{%H-});
+  oY := lY^;
+  oHeight:=lHeight^;
 end;
 
-procedure TGTKTextWidget.GetIterAtLocation(aIter: PGtkTextIter; aLocation: PGdkRectangle);
+function TTextWidget.GetIterAtLocation(aX: Longint; aY: Longint): TTextIter;
+var
+  lIter: PGtkTextIter;
 begin
-  gtk_text_view_get_iter_location(TextView,aIter,aLocation);
+  gtk_text_view_get_iter_at_location(TextView,lIter{%H-},aX,aY);
+  result := TTextIter.New(lIter);
 
 end;
 
-procedure TGTKTextWidget.GetIterAtPosition(aIter: PGtkTextIter; aTrailing: Pgint; aX: LongInt; aY: LongInt);
+function TTextWidget.GetIterAtPosition(var aTrailing: Longint;
+  aX: LongInt; aY: LongInt): TTextIter;
+var
+  lIter: PGtkTextIter;
+  lTrailing: Pgint;
 begin
-  gtk_text_view_get_iter_at_position(TextView,aIter,aTrailing,aX,aY);
+  lTrailing := @aTrailing;
+  gtk_text_view_get_iter_at_position(TextView,lIter{%H-},lTrailing,aX,aY);
+  aTrailing := lTrailing^;
+  result := TTextIter.New(lIter);
 end;
 
-function TGTKTextWidget.ForwardDisplayLine(aIter: PGtkTextIter): Boolean;
+function TTextWidget.GetIterAtPosition(aX: LongInt; aY: LongInt): TTextIter;
+var
+  lIter: PGtkTextIter;
 begin
-  result := gtk_text_view_forward_display_line(TextView,aIter);
+  gtk_text_view_get_iter_at_position(TextView,lIter{%H-},nil,aX,aY);
+  result := TTextIter.New(lIter);
 end;
 
-function TGTKTextWidget.BackwardDisplayLine(aIter: PGtkTextIter): Boolean;
+function TTextWidget.ForwardDisplayLine(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_backward_display_line(TextView,aIter);
+  result := gtk_text_view_forward_display_line(TextView,aIter.fIter);
 end;
 
-function TGTKTextWidget.ForwardDisplayLineEnd(aIter: PGtkTextIter): Boolean;
+function TTextWidget.BackwardDisplayLine(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_forward_display_line_end(TextView,aIter);
+  result := gtk_text_view_backward_display_line(TextView,aIter.fIter);
 end;
 
-function TGTKTextWidget.BackwardDisplayLineStart(aIter: PGtkTextIter): Boolean;
+function TTextWidget.ForwardDisplayLineEnd(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_backward_display_line_start(TextView,aIter);
+  result := gtk_text_view_forward_display_line_end(TextView,aIter.fIter);
 end;
 
-function TGTKTextWidget.StartsDisplayLine(aIter: PGtkTextIter): Boolean;
+function TTextWidget.BackwardDisplayLineStart(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_starts_display_line(TextView,aIter);
+  result := gtk_text_view_backward_display_line_start(TextView,aIter.fIter);
 end;
 
-function TGTKTextWidget.MoveVisually(aIter: PGtkTextIter; aCount: Longint): Boolean;
+function TTextWidget.StartsDisplayLine(aIter: TTextIter): Boolean;
 begin
-  result := gtk_text_view_move_visually(TextView,aIter,aCount);
+  result := gtk_text_view_starts_display_line(TextView,aIter.fIter);
+end;
+
+function TTextWidget.MoveVisually(aIter: TTextIter; aCount: Longint): Boolean;
+begin
+  result := gtk_text_view_move_visually(TextView,aIter.fIter,aCount);
 end;
 
 // TODO: This wasn't declared in gtktextview.inc, why?
 function gtk_text_view_im_context_filter_keypress(text_view:PGtkTextView; event:PGdkEventKey):gboolean; cdecl; external gtklib;
 
-function TGTKTextWidget.ImContextFilterKeypress(aEvent: PGdkEventKey): Boolean;
+function TTextWidget.ImContextFilterKeypress(aEvent: PGdkEventKey): Boolean;
 begin
   result := gtk_text_view_im_context_filter_keypress(TextView,aEvent);
 end;
@@ -462,27 +752,11 @@ end;
 // TODO: This wasn't declared in gtktextview.inc, why?
 procedure gtk_text_view_reset_im_context (text_view:PGtkTextView); cdecl; external gtklib;
 
-procedure TGTKTextWidget.ResetImContext;
+procedure TTextWidget.ResetImContext;
 begin
   gtk_text_view_reset_im_context(TextView);
 end;
 
-// TODO: This wasn't declared in gtktextview.inc, why?
-function gtk_text_view_get_hadjustment (text_view:PGtkTextView): PGtkAdjustment; cdecl; external gtklib;
-
-function TGTKTextWidget.GetHAdjustment: PGtkAdjustment;
-begin
-  result := gtk_text_view_get_hadjustment(TextView);
-end;
-
-// TODO: This wasn't declared in gtktextview.inc, why?
-function gtk_text_view_get_vadjustment (text_view:PGtkTextView): PGtkAdjustment; cdecl; external gtklib;
-
-
-function TGTKTextWidget.GetVAdjustment: PGtkAdjustment;
-begin
-  result := gtk_text_view_get_vadjustment(TextView);
-end;
 {$ENDIF}
 end.
 

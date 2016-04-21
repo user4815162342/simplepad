@@ -224,7 +224,6 @@ var
   lContents: TDocumentContents;
   lFormat: TDocumentFormat;
 begin
-  // Important: Don't put a semi-colon in here. It gets wrapped in parantheses.
   if aEditorTypeID = fHTMLFileFormatID then
   begin
       lFormat := dfHTML
