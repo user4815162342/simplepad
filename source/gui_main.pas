@@ -547,14 +547,10 @@ procedure TMainForm.FindEditKeyUp(Sender: TObject; var Key: Word;
 begin
   if (Key = VK_RETURN) and (FindEdit.Text <> '') then
   begin
-     if FindPreviousButton.Default then
-     begin
-        FindPreviousButton.Click
-     end
-     else
-     begin
+    // if default isn't set, as it won't be the first time, then we
+    // need to call click ourselves.
+    if (not FindPreviousButton.Default) and (not FindNextButton.Default) then
        FindNextButton.Click;
-     end;
   end
   else if (key = VK_ESCAPE) then
   begin
