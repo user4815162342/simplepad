@@ -32,8 +32,6 @@ type
       aWrap: Boolean=false; {%H-}aDoReplace: Boolean=false; {%H-}aReplaceText: String=''
       ): Boolean; override;
     procedure Print; override;
-    { public declarations }
-    class function GetFileType: String; override;
 
   end;
 {$ENDIF}
@@ -98,14 +96,12 @@ function TGTKTextWidgetFrame.FindReplace(aSearchText: String;
   ): Boolean;
 var
   lStart: TTextIter;
-  lCurrent: TTextIter;
   lSelStart: TTextIter;
   lSelEnd: TTextIter;
   lMatchStart: TTextIter;
   lMatchEnd: TTextIter;
 
 begin
-  // TODO: I think I need to use the selection end instead.
   fTextView.Buffer.SelectionBounds(lSelStart,lSelEnd);
   if aForward then
   begin
@@ -140,11 +136,6 @@ procedure TGTKTextWidgetFrame.Print;
 begin
   // TODO: Still have to handle this...
 
-end;
-
-class function TGTKTextWidgetFrame.GetFileType: String;
-begin
-  Result:='Dumb Binary Text File';
 end;
 
 {$ENDIF}

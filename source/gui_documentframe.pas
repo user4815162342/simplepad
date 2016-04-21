@@ -29,14 +29,14 @@ type
     fModified: boolean;
     class var fFileFormatFrameRegistry: TDocumentFrameClassRegistry;
     class var fFileFormatNameRegistry: TDocumentFrameNameRegistry;
-    class var fFileTypeFrameRegistry: TDocumentFrameClassRegistry;
-    class var fFileTypeDefaultFormatRegistry: TDocumentFrameNameRegistry;
-    class var fDefaultFileType: String;
+    class var fFrameDefaultFormatRegistry: TDocumentFrameNameRegistry;
+    class var fDefaultFileFormatID: String;
     class function GetEditor(aExtension: String): TDocumentFrameClass; static;
     class function GetFileFormatIDS(aIndex: Integer): String; static;
     class function GetFileFormatNames(aExtension: String): String; static;
-    class function GetFileTypeIDS(aIndex: Integer): String; static;
-    class function GetFormatsForFileTypeID(aID: String): TStringArray;
+    class function GetFormatsForFrameClass(aFrame: TDocumentFrameClass
+      ): TStringArray;
+    class function GetFrameID(aFrame: TDocumentFrameClass): String;
   protected
     procedure LoadText(aText: UTF8String; aEditorTypeID: UTF8String); virtual; abstract;
     function GetSaveText(aEditorTypeID: UTF8String): UTF8String; virtual; abstract;
@@ -106,21 +106,22 @@ type
     // A given TDocumentFrame can handle loading and saving to multiple formats.
 
     // returns the specified file type for the given document frame class.
-    class function GetFileType: String; virtual;
     class function FindFormatIDForFile(aFile: TFilename): String;
     class function FindEditorForFormatID(aID: String): TDocumentFrameClass;
-    class function FindEditorForFiletype(aType: String): TDocumentFrameClass;
     class function FindNameOfFormatID(aID: String): String;
-    class function FindDefaultFormatID(aFileType: String): String;
-    class function FindDefaultFileType: String;
+    class function FindDefaultFormatID(aFrame: TDocumentFrameClass): String;
+    class function FindDefaultFormatID: String;
     class function RegisterFormatEditor(const aFileFormat: String; aExtension: String; aFrameClass: TDocumentFrameClass; aDefaultFormat: Boolean = false): String;
-    class function EditorDialogFilters(aFileType: String): String;
-    class function FindExtensionForFormatFilterIndex(aFileType: String; aIndex: Integer): String;
-    class function FindFormatFilterIndexForFile(aFileType: String; aFile: TFilename): Integer;
+    class function EditorDialogFilters(aFrame: TDocumentFrameClass): String;
+    function EditorDialogFilters: String;
+    class function FindExtensionForFormatFilterIndex(aFrame: TDocumentFrameClass;
+      aIndex: Integer): String;
+    function FindExtensionForFormatFilterIndex(aIndex: Integer): String;
+    class function FindFormatFilterIndexForFile(aFrame: TDocumentFrameClass;
+      aFile: TFilename): Integer;
+    function FindFormatFilterIndexForFile: Integer;
     class function FileFormatIDCount: Integer;
     class property FileFormatIDS[aIndex: Integer]: String read GetFileFormatIDS;
-    class function FileTypeCount: Integer;
-    class property FileTypeIDS[aIndex: Integer]: String read GetFileTypeIDS;
 
   end;
 
@@ -151,32 +152,26 @@ begin
   result := fFileFormatNameRegistry[aExtension];
 end;
 
-class function TDocumentFrame.GetFileTypeIDS(aIndex: Integer): String; static;
-begin
-  result := fFileTypeFrameRegistry.Keys[aIndex];
-end;
-
-class function TDocumentFrame.GetFormatsForFileTypeID(aID: String
-  ): TStringArray;
+class function TDocumentFrame.GetFormatsForFrameClass(aFrame: TDocumentFrameClass): TStringArray;
 var
   i: Integer;
-  lFrame: TDocumentFrameClass;
   lExt: String;
 begin
   // All Files|*|RTF Files|*.rtf...
   SetLength(result,0);
-  for i := 0 to fFileFormatNameRegistry.Count - 1 do
+  for i := 0 to fFileFormatFrameRegistry.Count - 1 do
   begin
-    lExt := fFileFormatNameRegistry.Keys[i];
-    if aID <> '' then
-    begin
-      lFrame := FindEditorForFormatID(lExt);
-      if (lFrame = nil) or (lFrame.GetFileType <> aID) then
-         continue;
-    end;
+    if (aFrame <> nil) and (fFileFormatFrameRegistry.Data[i] <> aFrame) then
+       continue;
+    lExt := fFileFormatFrameRegistry.Keys[i];
     SetLength(Result,Length(Result) + 1);
     Result[Length(Result) - 1] := lExt;
   end;
+end;
+
+class function TDocumentFrame.GetFrameID(aFrame: TDocumentFrameClass): String;
+begin
+  result := aFrame.UnitName + aFrame.ClassName;
 end;
 
 procedure TDocumentFrame.SetOnCaptionChanged(AValue: TNotifyEvent);
@@ -234,16 +229,14 @@ class constructor TDocumentFrame.Create;
 begin
   fFileFormatFrameRegistry := TDocumentFrameClassRegistry.Create;
   fFileFormatNameRegistry := TDocumentFrameNameRegistry.Create;
-  fFileTypeFrameRegistry := TDocumentFrameClassRegistry.Create;
-  fFileTypeDefaultFormatRegistry := TDocumentFrameNameRegistry.Create;
+  fFrameDefaultFormatRegistry := TDocumentFrameNameRegistry.Create;
 end;
 
 class destructor TDocumentFrame.Destroy;
 begin
   FreeAndNil(fFileFormatNameRegistry);
   FreeAndNil(fFileFormatFrameRegistry);
-  FreeAndNil(fFileTypeFrameRegistry);
-  FreeAndNil(fFileTypeDefaultFormatRegistry);
+  FreeAndNil(fFrameDefaultFormatRegistry);
 end;
 
 procedure TDocumentFrame.Load(aFilename: UTF8String; aFormatID: UTF8String);
@@ -445,11 +438,6 @@ begin
 
 end;
 
-class function TDocumentFrame.GetFileType: String;
-begin
-  result := 'Unknown';
-end;
-
 function TDocumentFrame.CanFormat: Boolean;
 begin
   result := false;
@@ -501,18 +489,6 @@ begin
 
 end;
 
-class function TDocumentFrame.FindEditorForFiletype(aType: String
-  ): TDocumentFrameClass;
-var
-  lIndex: Integer;
-begin
-  lIndex := fFileTypeFrameRegistry.IndexOf(aType);
-  if lIndex >= 0 then
-     result := fFileTypeFrameRegistry.Data[lIndex]
-  else
-     result := nil;
-end;
-
 class function TDocumentFrame.FindNameOfFormatID(aID: String): String;
 var
   lIndex: Integer;
@@ -525,46 +501,44 @@ begin
 
 end;
 
-class function TDocumentFrame.FindDefaultFormatID(aFileType: String): String;
+class function TDocumentFrame.FindDefaultFormatID(aFrame: TDocumentFrameClass): String;
 var
   lIndex: Integer;
 begin
-  lIndex := fFileTypeDefaultFormatRegistry.IndexOf(aFileType);
+  lIndex := fFrameDefaultFormatRegistry.IndexOf(GetFrameID(aFrame));
   if lIndex >= 0 then
-     result := fFileTypeDefaultFormatRegistry.Data[lIndex]
+     result := fFrameDefaultFormatRegistry.Data[lIndex]
   else
-     raise Exception.Create('Unknown file type: "' + aFileType + '"');
+     raise Exception.Create('Unregistered frame: "' + GetFrameID(aFrame) + '"');
 end;
 
-class function TDocumentFrame.FindDefaultFileType: String;
+class function TDocumentFrame.FindDefaultFormatID: String;
 begin
-  result := fDefaultFileType;
+  result := fDefaultFileFormatID;
 end;
 
 class function TDocumentFrame.RegisterFormatEditor(const aFileFormat: String;
   aExtension: String; aFrameClass: TDocumentFrameClass; aDefaultFormat: Boolean
   ): String;
 var
-  lFileType: String;
+  lFrameID: String;
   lIndex: Integer;
 begin
   fFileFormatFrameRegistry.Add(aExtension,aFrameClass);
   fFileFormatNameRegistry.Add(aExtension,aFileFormat);
   result := aExtension;
-  lFileType := aFrameClass.GetFileType;
-  if fFileTypeFrameRegistry.IndexOf(lFileType) < 0 then
-     fFileTypeFrameRegistry.Add(lFileType,aFrameClass);
-  lIndex := fFileTypeDefaultFormatRegistry.IndexOf(lFileType);
+  lFrameID := GetFrameID(aFrameClass);
+  lIndex := fFrameDefaultFormatRegistry.IndexOf(lFrameID);
   if (lIndex < 0) then
-     fFileTypeDefaultFormatRegistry.Add(lFileType,aExtension)
+     fFrameDefaultFormatRegistry.Add(lFrameID,aExtension)
   else if aDefaultFormat then
-     fFileTypeDefaultFormatRegistry.Data[lIndex] := aExtension;
-  if fDefaultFileType = '' then
-     fDefaultFileType := aFrameClass.GetFileType;
+     fFrameDefaultFormatRegistry.Data[lIndex] := aExtension;
+  if fDefaultFileFormatID = '' then
+     fDefaultFileFormatID := result;
 
 end;
 
-class function TDocumentFrame.EditorDialogFilters(aFileType: String): String;
+class function TDocumentFrame.EditorDialogFilters(aFrame: TDocumentFrameClass): String;
 var
   lList: TStringArray;
   i: Integer;
@@ -573,7 +547,7 @@ var
 begin
   // All Files|*|RTF Files|*.rtf...
   result := 'All Files|*';
-  lList := GetFormatsForFileTypeID(aFileType);
+  lList := GetFormatsForFrameClass(aFrame);
   for i := 0 to Length(lList) - 1 do
   begin
     lExt := lList[i];
@@ -583,22 +557,33 @@ begin
 
 end;
 
+function TDocumentFrame.EditorDialogFilters: String;
+begin
+  result := TDocumentFrame.EditorDialogFilters(TDocumentFrameClass(Self.ClassType));
+end;
+
 class function TDocumentFrame.FindExtensionForFormatFilterIndex(
-  aFileType: String; aIndex: Integer): String;
+  aFrame: TDocumentFrameClass; aIndex: Integer): String;
 var
   lList: TStringArray;
 begin
-  lList := GetFormatsForFileTypeID(aFileType);
+  lList := GetFormatsForFrameClass(aFrame);
   if (aIndex > 0) and (aIndex <= Length(lList)) then
   begin
      result := lList[aIndex - 1]
   end
   else
-    result := FindDefaultFormatID(aFileType);
+    result := FindDefaultFormatID(aFrame);
 
 end;
 
-class function TDocumentFrame.FindFormatFilterIndexForFile(aFileType: String;
+function TDocumentFrame.FindExtensionForFormatFilterIndex(aIndex: Integer
+  ): String;
+begin
+  result := FindExtensionForFormatFilterIndex(TDocumentFrameClass(Self.ClassType),aIndex);
+end;
+
+class function TDocumentFrame.FindFormatFilterIndexForFile(aFrame: TDocumentFrameClass;
   aFile: TFilename): Integer;
 var
   lID: String;
@@ -606,7 +591,7 @@ var
   i: Integer;
 begin
   lID := FindFormatIDForFile(aFile);
-  lList := GetFormatsForFileTypeID(aFileType);
+  lList := GetFormatsForFrameClass(aFrame);
   for i := 0 to Length(lList) - 1 do
   begin
     if lList[i] = lID then
@@ -618,26 +603,15 @@ begin
   result := -1;
 end;
 
-{class function TDocumentFrame.FindFileTypeIDForFilterIndex(aIndex: Integer;
-  aFilename: TFilename): String;
+function TDocumentFrame.FindFormatFilterIndexForFile: Integer;
 begin
-  if (aIndex > 0) and (aIndex <= fNameRegistry.Count) then
-  begin
-    result := fNameRegistry.Keys[aIndex - 1];
-  end
-  else
-    result := FindFileTypeIDForFile(aFilename);
-end;}
+  result := FindFormatFilterIndexForFile(TDocumentFrameClass(Self.ClassType),Self.FileName);
+end;
 
 class function TDocumentFrame.FileFormatIDCount: Integer;
 begin
   result := fFileFormatFrameRegistry.Count;
 
-end;
-
-class function TDocumentFrame.FileTypeCount: Integer;
-begin
-  result := fFileTypeFrameRegistry.Count;
 end;
 
 end.
