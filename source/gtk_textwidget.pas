@@ -6,7 +6,7 @@ interface
 
 {$IFDEF LCLGTK2}
 uses
-  Classes, SysUtils, RichMemo, gtk2, gdk2, glib2, Gtk2RichMemo;
+  Classes, SysUtils, RichMemo, gtk2, gdk2, glib2, pango, Gtk2RichMemo, graphics;
 
 type
   {
@@ -37,6 +37,9 @@ type
   reading and writing quite easy. Eventually, I can create a FTM parser once
   this gtk stuff works.
 
+  TODO: Note that some functions simply won't be implemented. If it turns out
+  I need them, then maybe I'll add them, but for now, I think I'm fine.
+
 
   TODO: Need to wrap the various pointers in helper types that aren't pointers.
   Start with buffers and iters, some of the other stuff maybe not. I also have
@@ -57,55 +60,72 @@ type
   https://developer.gnome.org/gtk2/stable/TextWidget.html
   }
 
+  TTextJustification = (tjLeft, tjRight, tjCenter, tjFill);
+  TWrapMode = (wmNone, wmChar, wmWord, wmWordChar);
+
   { TGTKTextWidget }
 
   TGTKTextWidget = class(TRichMemo)
   private
     function GetAcceptsTab: Boolean;
+    // TODO: Wrap...
     function GetBuffer: PGtkTextBuffer;
     function GetCursorVisible: Boolean;
-    function GetDefaultAttributes: PGtkTextAttributes;
     function GetEditable: Boolean;
     function GetIndent: Longint;
-    function GetJustification: TGtkJustification;
+    function GetJustification: TTextJustification;
     function GetLeftMargin: Longint;
     function GetOverwrite: Boolean;
     function GetPixelsAboveLines: Longint;
     function GetPixelsBelowLines: Longint;
     function GetPixelsInsideWrap: Longint;
     function GetRightMargin: Longint;
+    // TODO: Wrap
+    function GetTabs: TPangoTabArray;
     function GetTextView: PGtkTextView;
-    function GetWrapMode: TGtkWrapMode;
+    function GetWrapMode: TWrapMode;
     procedure SetAcceptsTab(AValue: Boolean);
     procedure SetCursorVisible(AValue: Boolean);
     procedure SetEditable(AValue: Boolean);
     procedure SetIndent(AValue: Longint);
-    procedure SetJustification(AValue: TGtkJustification);
+    procedure SetJustification(AValue: TTextJustification);
     procedure SetLeftMargin(AValue: Longint);
     procedure SetOverwrite(AValue: Boolean);
     procedure SetPixelsAboveLines(AValue: Longint);
     procedure SetPixelsBelowLines(AValue: Longint);
     procedure SetPixelsInsideWrap(AValue: Longint);
     procedure SetRightMargin(AValue: Longint);
-    procedure SetWrapMode(AValue: TGtkWrapMode);
+    // TODO: Wrap
+    procedure SetTabs(AValue: TPangoTabArray);
+    procedure SetWrapMode(AValue: TWrapMode);
   protected
     property TextView: PGtkTextView read GetTextView;
   public
     // TODO: Set Buffer? Probably, but I have to make sure the old one gets
     // freed when I set it, and even then only if it's owned by me.
+    // TODO: Wrap
     property Buffer: PGtkTextBuffer read GetBuffer;
+    // TODO: Wrap
     procedure ScrollToMark(aMark: PGtkTextMark; aWithinMargin: Double;
       aUseAlign: Boolean; aXAlign: Double; aYAlign: Double);
+    // TODO: Wrap
     function ScrollToIter(aIter: PGtkTextIter; aWithinMargin: Double;
       aUseAlign: Boolean; aXAlign: Double; aYAlign: Double): Boolean;
+    // TODO: Wrap
     procedure ScrollMarkOnscreen(aMark: PGtkTextMark);
+    // TODO: Wrap
     function MoveMarkOnscreen(aMark: PGtkTextMark): Boolean;
     function PlaceCursorOnscreen: Boolean;
     //void 	gtk_text_view_get_visible_rect ()
+    // TODO: Wrap
     procedure GetIterLocation(aIter: PGtkTextIter; aLocation: PGdkRectangle);
+    // TODO: Wrap
     procedure GetLineAtY(aIter: PGtkTextIter; aY: Longint; aLineTop: Pgint);
+    // TODO: Wrap
     procedure GetLineYRange(aIter: PGtkTextIter; y: Pgint; aheight: Pgint);
+    // TODO: Wrap
     procedure GetIterAtLocation(aIter: PGtkTextIter; aLocation: PGdkRectangle);
+    // TODO: Wrap
     procedure GetIterAtPosition(aIter: PGtkTextIter; aTrailing: Pgint; aX: LongInt;
       aY: LongInt);
     //void 	gtk_text_view_buffer_to_window_coords ()
@@ -114,11 +134,16 @@ type
     //GtkTextWindowType 	gtk_text_view_get_window_type ()
     //void 	gtk_text_view_set_border_window_size ()
     //gint 	gtk_text_view_get_border_window_size ()
+    // TODO: Wrap
     function ForwardDisplayLine(aIter: PGtkTextIter): Boolean;
+    // TODO: Wrap
     function BackwardDisplayLine(aIter: PGtkTextIter): Boolean;
+    // TODO: Wrap
     function ForwardDisplayLineEnd(aIter: PGtkTextIter): Boolean;
     function BackwardDisplayLineStart(aIter: PGtkTextIter): Boolean;
+    // TODO: Wrap
     function StartsDisplayLine(aIter: PGtkTextIter): Boolean;
+    // TODO: Wrap
     function MoveVisually(aIter: PGtkTextIter; aCount: Longint): Boolean;
     //void 	gtk_text_view_add_child_at_anchor ()
     //GtkTextChildAnchor * 	gtk_text_child_anchor_new ()
@@ -126,24 +151,26 @@ type
     //gboolean 	gtk_text_child_anchor_get_deleted ()
     //void 	gtk_text_view_add_child_in_window ()
     //void 	gtk_text_view_move_child ()
-    property WrapMode: TGtkWrapMode read GetWrapMode write SetWrapMode;
+    property WrapMode: TWrapMode read GetWrapMode write SetWrapMode;
     property Editable: Boolean read GetEditable write SetEditable;
     property Cursorvisible: Boolean read GetCursorVisible write SetCursorVisible;
     property Overwrite: Boolean read GetOverwrite write SetOverwrite;
     property PixelsAboveLines: Longint read GetPixelsAboveLines write SetPixelsAboveLines;
     property PixelsBelowLines: Longint read GetPixelsBelowLines write SetPixelsBelowLines;
     property PixelsInsideWrap: Longint read GetPixelsInsideWrap write SetPixelsInsideWrap;
-    property Justification: TGtkJustification read GetJustification write SetJustification;
+    property Justification: TTextJustification read GetJustification write SetJustification;
     property LeftMargin: Longint read GetLeftMargin write SetLeftMargin;
     property RightMargin: Longint read GetRightMargin write SetRightMargin;
     property Indent: Longint read GetIndent write SetIndent;
-    //void 	gtk_text_view_set_tabs ()
-    //PangoTabArray * 	gtk_text_view_get_tabs ()
+    property Tabs: TPangoTabArray read GetTabs write SetTabs;
     property AcceptsTab: Boolean read GetAcceptsTab write SetAcceptsTab;
-    property DefaultAttributes: PGtkTextAttributes read GetDefaultAttributes;
+   //GtkTextAttributes* gtk_text_view_get_default_attributes (GtkTextView *text_view);
+    // TODO: Wrap
     function ImContextFilterKeypress(aEvent: PGdkEventKey): Boolean;
     procedure ResetImContext;
+    // TODO: Wrap
     function GetHAdjustment: PGtkAdjustment;
+    // TODO: Wrap
     function GetVAdjustment: PGtkAdjustment;
   end;
 
@@ -169,11 +196,6 @@ begin
   result := gtk_text_view_get_cursor_visible(TextView);
 end;
 
-function TGTKTextWidget.GetDefaultAttributes: PGtkTextAttributes;
-begin
-  result := gtk_text_view_get_default_attributes(TextView);
-end;
-
 function TGTKTextWidget.GetEditable: Boolean;
 begin
   result := gtk_text_view_get_editable(TextView);
@@ -184,9 +206,18 @@ begin
   result := gtk_text_view_get_indent(TextView);
 end;
 
-function TGTKTextWidget.GetJustification: TGtkJustification;
+function TGTKTextWidget.GetJustification: TTextJustification;
 begin
-  result := gtk_text_view_get_justification(TextView);
+  case gtk_text_view_get_justification(TextView) of
+    GTK_JUSTIFY_LEFT:
+      result := tjLeft;
+    GTK_JUSTIFY_RIGHT:
+      result := tjRight;
+    GTK_JUSTIFY_CENTER:
+      result := tjCenter;
+    GTK_JUSTIFY_FILL:
+      result := tjFill;
+  end;
 end;
 
 function TGTKTextWidget.GetLeftMargin: Longint;
@@ -219,6 +250,11 @@ begin
   result := gtk_text_view_get_right_margin(TextView);
 end;
 
+function TGTKTextWidget.GetTabs: TPangoTabArray;
+begin
+  result := gtk_text_view_get_tabs(TextView);
+end;
+
 function TGTKTextWidget.GetTextView: PGtkTextView;
 var
   Widget     : PGtkWidget;
@@ -233,9 +269,16 @@ begin
   result := PGtkTextView(list^.data);
 end;
 
-function TGTKTextWidget.GetWrapMode: TGtkWrapMode;
+function TGTKTextWidget.GetWrapMode: TWrapMode;
 begin
-  result := gtk_text_view_get_wrap_mode(TextView);
+  case gtk_text_view_get_wrap_mode(TextView) of
+    GTK_WRAP_NONE:
+      result := wmNone;
+    GTK_WRAP_CHAR:
+      result := TWrapMode.wmChar;
+    GTK_WRAP_WORD:
+      result := wmWord;
+  end;
 end;
 
 procedure TGTKTextWidget.SetAcceptsTab(AValue: Boolean);
@@ -258,9 +301,21 @@ begin
   gtk_text_view_set_indent(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetJustification(AValue: TGtkJustification);
+procedure TGTKTextWidget.SetJustification(AValue: TTextJustification);
+var
+  lValue: TGtkJustification;
 begin
-  gtk_text_view_set_justification(TextView,AValue);
+  case AValue of
+    tjLeft:
+      lValue := GTK_JUSTIFY_LEFT;
+    tjRight:
+      lValue := GTK_JUSTIFY_RIGHT;
+    tjCenter:
+      lValue := GTK_JUSTIFY_CENTER;
+    tjFill:
+      lValue := GTK_JUSTIFY_FILL;
+  end;
+  gtk_text_view_set_justification(TextView,lValue);
 end;
 
 procedure TGTKTextWidget.SetLeftMargin(AValue: Longint);
@@ -293,9 +348,24 @@ begin
   gtk_text_view_set_right_margin(TextView,AValue);
 end;
 
-procedure TGTKTextWidget.SetWrapMode(AValue: TGtkWrapMode);
+procedure TGTKTextWidget.SetTabs(AValue: TPangoTabArray);
 begin
-  gtk_text_view_set_wrap_mode(TextView,AValue);
+  gtk_text_view_set_tabs(TextView,AValue);
+end;
+
+procedure TGTKTextWidget.SetWrapMode(AValue: TWrapMode);
+var
+  lValue: TGtkWrapMode;
+begin
+  case AValue of
+    wmNone:
+      lValue := GTK_WRAP_NONE;
+    TWrapMode.wmChar:
+      lValue := GTK_WRAP_CHAR;
+    wmWord:
+      lValue := GTK_WRAP_WORD;
+  end;
+  gtk_text_view_set_wrap_mode(TextView,lValue);
 end;
 
 procedure TGTKTextWidget.ScrollToMark(aMark: PGtkTextMark; aWithinMargin: Double; aUseAlign: Boolean; aXAlign: Double; aYAlign: Double);
