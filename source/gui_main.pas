@@ -33,10 +33,10 @@ type
 
   TNewDocumentAction = class(TAppAction)
   private
-    fFileType: String;
-    procedure SetFileType(AValue: String);
+    fFormatID: String;
+    procedure SetFormatID(AValue: String);
   public
-    property FileType: String read fFileType write SetFileType;
+    property FormatID: String read fFormatID write SetFormatID;
   end;
 
   EMaxProjectSizeReached = class(Exception);
@@ -81,7 +81,8 @@ type
     procedure RegisterAction(const aName: UTF8String;
       const aMenuCaption: UTF8String; const aFullCaption: UTF8String;
   aExecute: TNotifyEvent = nil; aUpdate: TUpdateActionEvent = nil);
-    procedure RegisterNewFileAction(const aFileType: String);
+    procedure RegisterNewFileAction(const aFormatID: String;
+      const aFormatName: String);
     procedure ReplaceCheckboxClick(Sender: TObject);
     procedure ReplaceEditKeyUp(Sender: TObject; var Key: Word;
       {%H-}Shift: TShiftState);
@@ -250,7 +251,7 @@ begin
        fMainForm.OpenFile(fFiles[i]);
   end
   else
-    fMainForm.NewFile(TDocumentFrame.FindEditorForFileType(TDocumentFrame.FindDefaultFileType));
+    fMainForm.NewFile(TDocumentFrame.FindEditorForFormatID(TDocumentFrame.FindDefaultFormatID));
 end;
 
 constructor TOpenAfterLoad.Create(AOwner: TComponent);
@@ -277,10 +278,10 @@ end;
 
 { TNewDocumentAction }
 
-procedure TNewDocumentAction.SetFileType(AValue: String);
+procedure TNewDocumentAction.SetFormatID(AValue: String);
 begin
-  if fFileType=AValue then Exit;
-  fFileType:=AValue;
+  if fFormatID=AValue then Exit;
+  fFormatID:=AValue;
 end;
 
 { TAppAction }
@@ -753,11 +754,11 @@ procedure TMainForm.NewFileAction(Sender: TObject);
 begin
   if Sender is TNewDocumentAction then
   begin
-    NewFile(TDocumentFrame.FindEditorForFiletype((Sender as TNewDocumentAction).FileType));
+    NewFile(TDocumentFrame.FindEditorForFormatID((Sender as TNewDocumentAction).FormatID));
   end
   else
   begin
-    NewFile(TDocumentFrame.FindEditorForFileType(TDocumentFrame.FindDefaultFileType));
+    NewFile(TDocumentFrame.FindEditorForFormatID(TDocumentFrame.FindDefaultFormatID));
   end;
 end;
 
@@ -826,15 +827,15 @@ begin
 
 end;
 
-procedure TMainForm.RegisterNewFileAction(const aFileType: String);
+procedure TMainForm.RegisterNewFileAction(const aFormatID: String; const aFormatName: String);
 var
   lAction: TNewDocumentAction;
 begin
   lAction := TNewDocumentAction.Create(MainFormActions);
   lAction.ActionList := MainFormActions;
-  lAction.FileType := aFileType;
-  lAction.Name := 'New' + StringReplace(aFileType,' ','_',[rfReplaceAll]) + 'Action';
-  lAction.Caption := 'New ' + aFileType;
+  lAction.FormatID := aFormatID;
+  lAction.Name := 'New' + StringReplace(aFormatName,' ','_',[rfReplaceAll]) + 'Action';
+  lAction.Caption := aFormatName;
   lAction.Hint := 'Create New ' + lAction.Caption;
   lAction.OnExecute:=@NewFileAction;
 end;
@@ -1023,7 +1024,7 @@ end;
 
 procedure TMainForm.SetupDialogs;
 begin
-  DocumentOpenDialog.Filter := TDocumentFrame.EditorDialogFilters('');
+  DocumentOpenDialog.Filter := TDocumentFrame.EditorDialogFilters(nil);
 end;
 
 procedure TMainForm.OpenFile(aFileName: UTF8String);
@@ -1125,12 +1126,14 @@ end;
 procedure TMainForm.RegisterActions;
 var
   i: Integer;
+  lFormatID: String;
 begin
   // I don't want to have to go through the gui interface to create
   // these actions in the action list editor, so I'm doing this by code...
-  for i := 0 to TDocumentFrame.FileTypeCount - 1 do
+  for i := 0 to TDocumentFrame.FileFormatIDCount - 1 do
   begin
-    RegisterNewFileAction(TDocumentFrame.FileTypeIDS[i]);
+    lFormatID := TDocumentFrame.FileFormatIDS[i];
+    RegisterNewFileAction(lFormatID,TDocumentFrame.FindNameOfFormatID(lFormatID));
   end;
   RegisterAction('NewFileAction','&New','New file',@NewFileAction);
   RegisterAction('OpenFileAction','&Open','Open a file',@OpenFileAction);
@@ -1233,20 +1236,26 @@ var
 var
   i: Integer;
 //  lFoundUnassignedAction: Boolean;
+  lFileFormatID: String;
+  lFileFormatName: String;
 
 begin
   NewMainMenu('&File');
-  if TDocumentFrame.FileTypeCount > 1 then
+  if TDocumentFrame.FileFormatIDCount > 1 then
   begin
     NewSubMenu('New');
-    for i := 0 to TDocumentFrame.FileTypeCount - 1 do
+    for i := 0 to TDocumentFrame.FileFormatIDCount - 1 do
     begin
-      AddItem('New' + StringReplace(TDocumentFrame.FileTypeIDS[i],' ','_',[rfReplaceAll]) + 'Action');
+      lFileFormatID := TDocumentFrame.FileFormatIDS[i];
+      lFileFormatName := TDocumentFrame.FindNameOfFormatID(lFileFormatID);
+      AddItem('New' + StringReplace(lFileFormatName,' ','_',[rfReplaceAll]) + 'Action');
     end;
     EndSubMenu;
   end
-  else if TDocumentFrame.FileTypeCount > 0 then;
+  else if TDocumentFrame.FileFormatIDCount > 0 then
+  begin
     AddItem('NewFileAction');
+  end;
   AddItem('OpenFileAction');
   lMenu.AddSeparator;
   AddItem('SaveFileAction');
@@ -1417,12 +1426,12 @@ function TMainForm.SaveFrameAs(aFrame: TDocumentFrame): Boolean;
 var
   lOriginalFileName: String;
 begin
-  DocumentSaveAsDialog.Filter := TDocumentFrame.EditorDialogFilters(aFrame.GetFileType);
+  DocumentSaveAsDialog.Filter := aFrame.EditorDialogFilters;
   lOriginalFileName := aFrame.FileName;
   if lOriginalFileName <> '' then
   begin
       DocumentSaveAsDialog.FileName := aFrame.FileName;
-      DocumentSaveAsDialog.FilterIndex := TDocumentFrame.FindFormatFilterIndexForFile(aFrame.FileFormatID,aFrame.FileName) + 1;
+      DocumentSaveAsDialog.FilterIndex := aFrame.FindFormatFilterIndexForFile + 1;
   end
   else
   begin
@@ -1435,7 +1444,7 @@ begin
     if ExtractFileExt(DocumentSaveAsDialog.FileName) = '' then
     begin
     // index is 1-based in the dialog...
-       DocumentSaveAsDialog.FileName := ChangeFileExt(DocumentSaveAsDialog.FileName,'.' + TDocumentFrame.FindExtensionForFormatFilterIndex(aFrame.GetFileType,DocumentSaveAsDialog.FilterIndex - 1));
+       DocumentSaveAsDialog.FileName := ChangeFileExt(DocumentSaveAsDialog.FileName,'.' + aFrame.FindExtensionForFormatFilterIndex(DocumentSaveAsDialog.FilterIndex - 1));
        if FileExists(DocumentSaveAsDialog.FileName) and
           (MessageDlg(rsfdOverwriteFile,
                          Format(rsfdFileAlreadyExists,[DocumentSaveAsDialog.FileName]),
@@ -1463,7 +1472,7 @@ begin
   begin
      aTab.Free;
      if DocumentTabs.PageCount = 0 then
-        NewFile(TDocumentFrame.FindEditorForFileType(TDocumentFrame.FindDefaultFileType));
+        NewFile(TDocumentFrame.FindEditorForFormatID(TDocumentFrame.FindDefaultFormatID()));
   end;
 end;
 

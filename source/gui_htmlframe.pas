@@ -87,8 +87,6 @@ type
     procedure DecreaseListIndent; override;
     procedure IncreaseListIndent; override;
 
-    class function GetFileType: String; override;
-
   end;
 
 implementation
@@ -511,11 +509,6 @@ end;
 
 procedure THTMLFrame.IncreaseListIndent;
 begin
-end;
-
-class function THTMLFrame.GetFileType: String;
-begin
-  Result:='Formatted Text Document';
 end;
 
 end.
