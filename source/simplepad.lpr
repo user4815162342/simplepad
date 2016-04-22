@@ -9,7 +9,7 @@ uses
   Interfaces, // this includes the LCL widgetset
   Forms, richmemopackage, gui_main, gui_documentframe, gui_htmlframe, sys_types,
   gui_config, gui_gtktextwidgetframe, gtk_textwidget, wid_wysiwymeditor,
-  gtk2_wysiwymeditor;
+  wid_gtk2_wysiwymeditor, wid_ws_wysiwymeditor, wid_wysiwymeditor_factory;
 
 {$R *.res}
 

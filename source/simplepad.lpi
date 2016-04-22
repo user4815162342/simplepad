@@ -43,7 +43,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="10">
+    <Units Count="12">
       <Unit0>
         <Filename Value="simplepad.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -102,10 +102,20 @@
         <UnitName Value="wid_wysiwymeditor"/>
       </Unit8>
       <Unit9>
-        <Filename Value="gtk2_wysiwymeditor.pas"/>
+        <Filename Value="wid_gtk2_wysiwymeditor.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="gtk2_wysiwymeditor"/>
+        <UnitName Value="wid_gtk2_wysiwymeditor"/>
       </Unit9>
+      <Unit10>
+        <Filename Value="wid_ws_wysiwymeditor.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="wid_ws_wysiwymeditor"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="wid_wysiwymeditor_factory.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="wid_wysiwymeditor_factory"/>
+      </Unit11>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

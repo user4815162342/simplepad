@@ -77,7 +77,10 @@ https://developer.gnome.org/gtk2/stable/TextWidget.html
 }
 
 type
-  TWYSIWYMMemo = class(TRichMemo)
+  TWYSIWYMEditor = class(TWinControl)
+  protected
+
+
 
   end;
 
