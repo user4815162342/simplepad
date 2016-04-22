@@ -43,7 +43,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="12">
+    <Units Count="13">
       <Unit0>
         <Filename Value="simplepad.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -116,6 +116,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="wid_wysiwymeditor_factory"/>
       </Unit11>
+      <Unit12>
+        <Filename Value="wid_wysiwymeditor_styles.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="wid_wysiwymeditor_styles"/>
+      </Unit12>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

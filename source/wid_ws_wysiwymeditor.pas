@@ -5,7 +5,16 @@ unit wid_ws_wysiwymeditor;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, WSControls, WSLCLClasses;
+
+type
+  TWSWYSIWYMStyleManager = class(TWSLCLReferenceComponent)
+
+  end;
+
+  TWSWYSIWYMEditor = class(TWSWinControl)
+
+  end;
 
 implementation
 
