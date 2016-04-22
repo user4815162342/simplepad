@@ -11,24 +11,11 @@ uses
 
 type
   {
-  TODO: Rethinking this... I don't want a full-fledged editor, I just want a
-  WYSIWYM editor. More specifically, I need a WYSIWYM editor that supports
-  some rather specific structure tags. For that, I need the following:
-  - A shared 'TagTable' which is class global for all instances of the editor.
-  - A way of specifying the styles for these tags. I only need to specify
-  certain style properties, I don't need everything.
-  - Sharing a buffer is cool, and easy to do, but not necessary.
-  - A number of methods which are used for manipulating and retrieving the
-  data without knowing anything about tagtables and the like: A method called
-  SetBulletStyle sets the current paragraph to an unordered list item. A method
-  called SetBold sets the currently selected item to bold (or turns on bold for
-  further typing). And so on...
-  - The ability to save to a number of formats using serializers that know how
-  to handle the tags as they are iterated through.
+  TODO: Delete this unit, once I'm going with WYSIWYM Editor.
 
-  *** So, stop trying to recreate the GTK Text View in Pascal style, and just
-  create that object, mentioned above. This also makes it easier to create it
-  as a custom component with a WidgetSet backing that can use Qt or Windows.
+  I'm done with this stuff, I don't need the work. I'll keep the unit around
+  until I get going with the WYSIWYM editor, since I'll need to copy some stuff
+  over to it.
 
 
   Basically extends TRichMemo to allow more direct access to the GTK functionality,
