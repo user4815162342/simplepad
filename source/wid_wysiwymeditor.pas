@@ -1,4 +1,4 @@
-unit widget_wysiwymeditor;
+unit wid_wysiwymeditor;
 
 {$mode objfpc}{$H+}
 

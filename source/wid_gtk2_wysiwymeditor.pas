@@ -1,4 +1,4 @@
-unit gtk2_wysiwymeditor;
+unit wid_gtk2_wysiwymeditor;
 
 {$mode objfpc}{$H+}
 
