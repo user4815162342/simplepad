@@ -11,6 +11,26 @@ uses
 
 type
   {
+  TODO: Rethinking this... I don't want a full-fledged editor, I just want a
+  WYSIWYM editor. More specifically, I need a WYSIWYM editor that supports
+  some rather specific structure tags. For that, I need the following:
+  - A shared 'TagTable' which is class global for all instances of the editor.
+  - A way of specifying the styles for these tags. I only need to specify
+  certain style properties, I don't need everything.
+  - Sharing a buffer is cool, and easy to do, but not necessary.
+  - A number of methods which are used for manipulating and retrieving the
+  data without knowing anything about tagtables and the like: A method called
+  SetBulletStyle sets the current paragraph to an unordered list item. A method
+  called SetBold sets the currently selected item to bold (or turns on bold for
+  further typing). And so on...
+  - The ability to save to a number of formats using serializers that know how
+  to handle the tags as they are iterated through.
+
+  *** So, stop trying to recreate the GTK Text View in Pascal style, and just
+  create that object, mentioned above. This also makes it easier to create it
+  as a custom component with a WidgetSet backing that can use Qt or Windows.
+
+
   Basically extends TRichMemo to allow more direct access to the GTK functionality,
   since the abstraction layer removes some features. This does mean this is
   platform dependent, but in theory I could *not* compile this if I'm not using
@@ -133,16 +153,163 @@ type
     function BackwardSearch(aNeedle: UTF8String; aFlags: TSearchFlags; out oMatchStart: TTextIter; out oMatchEnd: TTextIter; aLimit: TTextIter): Boolean;
   end;
 
+  { TTextTag }
 
-  { TTagTable }
+  TTextTag = record
+  private
+    fTag: PGtkTextTag;
+    function GetPriority: Longint;
+    procedure SetPriority(AValue: Longint);
+  protected
+    class function New(aTag: PGtkTextTag): TTextTag; static;
+  public
+    class function New(aName: String): TTextTag; static;
+    class function New: TTextTag; static;
+    property Priority: Longint read GetPriority write SetPriority;
 
-  TTagTable = record
+
+    {
+    // TODO: Set these properties using g_object_get and g_object_set.
+    PangoFontDescription * 	font-desc 	Read / Write
+    gchar * 	foreground 	Write
+    GdkColor * 	foreground-gdk 	Read / Write
+    gboolean 	foreground-set 	Read / Write
+    GdkPixmap * 	foreground-stipple 	Read / Write
+    gboolean 	foreground-stipple-set 	Read / Write
+    gint 	indent 	Read / Write
+    gboolean 	indent-set 	Read / Write
+    gboolean 	invisible 	Read / Write
+    gboolean 	invisible-set 	Read / Write
+    GtkJustification 	justification 	Read / Write
+    gboolean 	justification-set 	Read / Write
+    gchar * 	language 	Read / Write
+    gboolean 	language-set 	Read / Write
+    gint 	left-margin 	Read / Write
+    gboolean 	left-margin-set 	Read / Write
+    gchar * 	name 	Read / Write / Construct Only
+    gchar * 	paragraph-background 	Write
+    GdkColor * 	paragraph-background-gdk 	Read / Write
+    gboolean 	paragraph-background-set 	Read / Write
+    gint 	pixels-above-lines 	Read / Write
+    gboolean 	pixels-above-lines-set 	Read / Write
+    gint 	pixels-below-lines 	Read / Write
+    gboolean 	pixels-below-lines-set 	Read / Write
+    gint 	pixels-inside-wrap 	Read / Write
+    gboolean 	pixels-inside-wrap-set 	Read / Write
+    gint 	right-margin 	Read / Write
+    gboolean 	right-margin-set 	Read / Write
+    gint 	rise 	Read / Write
+    gboolean 	rise-set 	Read / Write
+    gdouble 	scale 	Read / Write
+    gboolean 	scale-set 	Read / Write
+    gint 	size 	Read / Write
+    gdouble 	size-points 	Read / Write
+    gboolean 	size-set 	Read / Write
+    PangoStretch 	stretch 	Read / Write
+    gboolean 	stretch-set 	Read / Write
+    gboolean 	strikethrough 	Read / Write
+    gboolean 	strikethrough-set 	Read / Write
+    PangoStyle 	style 	Read / Write
+    gboolean 	style-set 	Read / Write
+    PangoTabArray * 	tabs 	Read / Write
+    gboolean 	tabs-set 	Read / Write
+    PangoUnderline 	underline 	Read / Write
+    gboolean 	underline-set 	Read / Write
+    PangoVariant 	variant 	Read / Write
+    gboolean 	variant-set 	Read / Write
+    gint 	weight 	Read / Write
+    gboolean 	weight-set 	Read / Write
+    GtkWrapMode 	wrap-mode 	Read / Write
+    gboolean 	wrap-mode-set}
+
+
+{
+gboolean 	accumulative-margin 	Read / Write
+gchar * 	background 	Write
+gboolean 	background-full-height 	Read / Write
+gboolean 	background-full-height-set 	Read / Write
+GdkColor * 	background-gdk 	Read / Write
+gboolean 	background-set 	Read / Write
+GdkPixmap * 	background-stipple 	Read / Write
+gboolean 	background-stipple-set 	Read / Write
+GtkTextDirection 	direction 	Read / Write
+gboolean 	editable 	Read / Write
+gboolean 	editable-set 	Read / Write
+gchar * 	family 	Read / Write
+gboolean 	family-set 	Read / Write
+gchar * 	font 	Read / Write
+PangoFontDescription * 	font-desc 	Read / Write
+gchar * 	foreground 	Write
+GdkColor * 	foreground-gdk 	Read / Write
+gboolean 	foreground-set 	Read / Write
+GdkPixmap * 	foreground-stipple 	Read / Write
+gboolean 	foreground-stipple-set 	Read / Write
+gint 	indent 	Read / Write
+gboolean 	indent-set 	Read / Write
+gboolean 	invisible 	Read / Write
+gboolean 	invisible-set 	Read / Write
+GtkJustification 	justification 	Read / Write
+gboolean 	justification-set 	Read / Write
+gchar * 	language 	Read / Write
+gboolean 	language-set 	Read / Write
+gint 	left-margin 	Read / Write
+gboolean 	left-margin-set 	Read / Write
+gchar * 	name 	Read / Write / Construct Only
+gchar * 	paragraph-background 	Write
+GdkColor * 	paragraph-background-gdk 	Read / Write
+gboolean 	paragraph-background-set 	Read / Write
+gint 	pixels-above-lines 	Read / Write
+gboolean 	pixels-above-lines-set 	Read / Write
+gint 	pixels-below-lines 	Read / Write
+gboolean 	pixels-below-lines-set 	Read / Write
+gint 	pixels-inside-wrap 	Read / Write
+gboolean 	pixels-inside-wrap-set 	Read / Write
+gint 	right-margin 	Read / Write
+gboolean 	right-margin-set 	Read / Write
+gint 	rise 	Read / Write
+gboolean 	rise-set 	Read / Write
+gdouble 	scale 	Read / Write
+gboolean 	scale-set 	Read / Write
+gint 	size 	Read / Write
+gdouble 	size-points 	Read / Write
+gboolean 	size-set 	Read / Write
+PangoStretch 	stretch 	Read / Write
+gboolean 	stretch-set 	Read / Write
+gboolean 	strikethrough 	Read / Write
+gboolean 	strikethrough-set 	Read / Write
+PangoStyle 	style 	Read / Write
+gboolean 	style-set 	Read / Write
+PangoTabArray * 	tabs 	Read / Write
+gboolean 	tabs-set 	Read / Write
+PangoUnderline 	underline 	Read / Write
+gboolean 	underline-set 	Read / Write
+PangoVariant 	variant 	Read / Write
+gboolean 	variant-set 	Read / Write
+gint 	weight 	Read / Write
+gboolean 	weight-set 	Read / Write
+GtkWrapMode 	wrap-mode 	Read / Write
+gboolean 	wrap-mode-set}
+  end;
+
+  { TTextTagTable }
+
+  TTextTagTable = record
   private
     fTable: PGtkTextTagTable;
+    function GetSize: Longint;
   protected
-    class function New(aTable: PGtkTextTagTable): TTagTable; static;
+    class function New(aTable: PGtkTextTagTable): TTextTagTable; static;
   public
-    class function New: TTagTable; static;
+    class function New: TTextTagTable; static;
+    // only need to use if you're going to keep tables alive without buffers,
+    // such as when sharing them globally.
+    procedure Ref;
+    procedure Unref;
+    procedure Add(aTag: TTextTag);
+    procedure Remove(aTag: TTextTag);
+    function Lookup(aName: String): TTextTag;
+    property Size: Longint read GetSize;
+    procedure ForEach(aFunc: TGtkTextTagTableForeach; aData: Pointer);
   end;
 
   { TTextBuffer }
@@ -155,14 +322,14 @@ type
     function GetInsertMark: TTextMark;
     function GetLineCount: Longint;
     function GetStartIter: TTextIter;
-    function GetTagTable: TTagTable;
+    function GetTagTable: TTextTagTable;
   protected
      class function New(aBuffer: PGtkTextBuffer): TTextBuffer; static;
   public
-     class function New(aTagTable: TTagTable): TTextBuffer; static;
+     class function New(aTagTable: TTextTagTable): TTextBuffer; static;
      property LineCount: Longint read GetLineCount;
      property CharCount: Longint read GetCharCount;
-     property TagTable: TTagTable read GetTagTable;
+     property TagTable: TTextTagTable read GetTagTable;
      // TODO: What else?
      property InsertMark: TTextMark read GetInsertMark;
      function IterAtMark(aMark: TTextMark): TTextIter;
@@ -232,7 +399,7 @@ type
     What I *should* be able to do is provide a tag table or a buffer before
     the TextView is actually created, and have it assign those.
     }
-    procedure NewBufferWithTagTable(aTable: TTagTable);
+    procedure NewBufferWithTagTable(aTable: TTextTagTable);
     procedure ScrollToMark(aMark: TTextMark; aWithinMargin: Double;
       aUseAlign: Boolean; aXAlign: Double; aYAlign: Double);
     function ScrollToIter(aIter: TTextIter; aWithinMargin: Double;
@@ -293,6 +460,35 @@ type
 {$ENDIF}
 implementation
 
+{ TTextTag }
+
+function TTextTag.GetPriority: Longint;
+begin
+  result := gtk_text_tag_get_priority(fTag);
+end;
+
+procedure TTextTag.SetPriority(AValue: Longint);
+begin
+  gtk_text_tag_set_priority(fTag,AValue);
+end;
+
+class function TTextTag.New(aTag: PGtkTextTag): TTextTag;
+begin
+  result.fTag := aTag;
+
+end;
+
+class function TTextTag.New(aName: String): TTextTag;
+begin
+  result.fTag := gtk_text_tag_new(PChar(aName));
+end;
+
+class function TTextTag.New: TTextTag;
+begin
+  result.fTag := gtk_text_tag_new(nil);
+
+end;
+
 { TTextMarkHelper }
 
 function TTextMarkHelper.GetBuffer: TTextBuffer;
@@ -300,16 +496,53 @@ begin
   result := TTextBuffer.New(gtk_text_mark_get_buffer(fMark));
 end;
 
-{ TTagTable }
+{ TTextTagTable }
 
-class function TTagTable.New(aTable: PGtkTextTagTable): TTagTable;
+function TTextTagTable.GetSize: Longint;
+begin
+  result := gtk_text_tag_table_get_size(fTable);
+end;
+
+class function TTextTagTable.New(aTable: PGtkTextTagTable): TTextTagTable;
 begin
   result.fTable := aTable;
 end;
 
-class function TTagTable.New: TTagTable;
+class function TTextTagTable.New: TTextTagTable;
 begin
   result.fTable := gtk_text_tag_table_new;
+end;
+
+procedure TTextTagTable.Ref;
+begin
+  g_object_ref(fTable);
+end;
+
+procedure TTextTagTable.Unref;
+begin
+  g_object_unref(fTable);
+end;
+
+procedure TTextTagTable.Add(aTag: TTextTag);
+begin
+  gtk_text_tag_table_add(fTable,aTag.fTag);
+end;
+
+procedure TTextTagTable.Remove(aTag: TTextTag);
+begin
+  gtk_text_tag_table_remove(fTable,aTag.fTag);
+
+end;
+
+function TTextTagTable.Lookup(aName: String): TTextTag;
+begin
+  result := TTextTag.New(gtk_text_tag_table_lookup(fTable,PChar(aName)));
+
+end;
+
+procedure TTextTagTable.ForEach(aFunc: TGtkTextTagTableForeach; aData: Pointer);
+begin
+  gtk_text_tag_table_foreach(fTable,aFunc,aData);
 end;
 
 { TTextBuffer }
@@ -347,9 +580,9 @@ begin
 
 end;
 
-function TTextBuffer.GetTagTable: TTagTable;
+function TTextBuffer.GetTagTable: TTextTagTable;
 begin
-  result := TTagTable.New(gtk_text_buffer_get_tag_table(fBuffer));
+  result := TTextTagTable.New(gtk_text_buffer_get_tag_table(fBuffer));
 end;
 
 class function TTextBuffer.New(aBuffer: PGtkTextBuffer): TTextBuffer;
@@ -357,7 +590,7 @@ begin
   result.fBuffer := aBuffer;
 end;
 
-class function TTextBuffer.New(aTagTable: TTagTable): TTextBuffer;
+class function TTextBuffer.New(aTagTable: TTextTagTable): TTextBuffer;
 begin
   result.fBuffer := gtk_text_buffer_new(aTagTable.fTable);
 end;
@@ -719,7 +952,7 @@ begin
   gtk_text_view_set_wrap_mode(TextView,lValue);
 end;
 
-procedure TTextWidget.NewBufferWithTagTable(aTable: TTagTable);
+procedure TTextWidget.NewBufferWithTagTable(aTable: TTextTagTable);
 var
   lBuffer: PGtkTextBuffer;
 begin
