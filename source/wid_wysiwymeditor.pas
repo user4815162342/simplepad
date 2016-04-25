@@ -8,7 +8,10 @@ interface
 uses
   Classes, SysUtils, Controls, LCLClasses, wid_wysiwymeditor_styles;
 
+
+
 {
+
 TODO: Next things next: I need to start hooking things up. But, in order
 to do that, I want to first make sure the basics work. So, try to add this
 to a form in Simplepad, and see if we can type around in it.
@@ -102,24 +105,31 @@ and give me a good use case, or add them themselves.
 
 type
 
+
+
+  TWYSIWYMNodeKind = (nkParagraph, nkSpan, nkText);
+  TWYSIWYMSpanKind = (ncEmphasis, ncStrong, ncCode, ncSubscript,
+                               ncSuperscript, ncLink, ncLinebreak, ncCustomSpan);
+  TWYSIWYMParagraphKind = (ncNormalParagraph, ncHeading, ncVerse, ncHorizontalRule, ncBlockQuote, ncOrderedListItem,
+                               ncUnorderedListItem, ncCustomParagraph);
   TWYSIWYMHeadingLevel = (hl1, hl2, hl3, hl4, hl5, hl6);
+
 
   { TWYSIWYMStyleManager }
 
   TWYSIWYMStyleManager = class(TLCLReferenceComponent)
   private
-    function GetBlockQuoteStyle: TContainerStyle;
-    function GetBodyStyle: TContainerStyle;
+    function GetBlockQuoteStyle: TParagraphStyle;
+    function GetBlockQuoteStyle(const aIndent: Word): TParagraphStyle;
+    function GetBodyStyle: TBodyStyle;
     function GetCodeStyle: TSpanStyle;
-    function GetContainerStyles(const aName: String): TContainerStyle;
     function GetEmphasisStyle: TSpanStyle;
     function GetHeadingStyle(const aLevel: TWYSIWYMHeadingLevel): TParagraphStyle;
     function GetHeadingStyle: TParagraphStyle;
     function GetLinkStyle: TSpanStyle;
-    function GetNestedOrderedListStyles(const aLevel: Longint): TContainerStyle;
-    function GetNestedUnorderedListStyles(const aLevel: Longint
-      ): TContainerStyle;
-    function GetOrderedListItemStyle: TContainerStyle;
+    function GetOrderedListStyles(const aIndent: Word): TParagraphStyle;
+    function GetUnorderedListStyles(const aIndent: Word): TParagraphStyle;
+    function GetOrderedListItemStyle: TParagraphStyle;
     function GetParagraphStyles(const aName: String): TParagraphStyle;
     function GetSpanStyles(const aName: String): TSpanStyle;
     function GetStrongStyle: TSpanStyle;
@@ -129,27 +139,26 @@ type
     function GetStyleName(const aIndex: Longint): String;
     function GetSubscriptStyle: TSpanStyle;
     function GetSuperscriptStyle: TSpanStyle;
-    function GetUnorderedListItemStyle: TContainerStyle;
+    function GetUnorderedListItemStyle: TParagraphStyle;
     function GetVerseStyle: TParagraphStyle;
-    procedure SetBlockQuoteStyle(AValue: TContainerStyle);
-    procedure SetBodyStyle(AValue: TContainerStyle);
+    procedure SetBlockQuoteStyle(AValue: TParagraphStyle);
+    procedure SetBlockQuoteStyle(const aIndent: Word; AValue: TParagraphStyle);
+    procedure SetBodyStyle(AValue: TBodyStyle);
     procedure SetCodeStyle(AValue: TSpanStyle);
-    procedure SetContainerStyles(const aName: String; AValue: TContainerStyle);
     procedure SetEmphasisStyle(AValue: TSpanStyle);
     procedure SetHeadingStyle(const aLevel: TWYSIWYMHeadingLevel; AValue: TParagraphStyle);
     procedure SetHeadingStyle(AValue: TParagraphStyle);
     procedure SetLinkStyle(AValue: TSpanStyle);
-    procedure SetNestedOrderedListStyles(const aLevel: Longint;
-      AValue: TContainerStyle);
-    procedure SetNestedUnorderedListStyles(const aLevel: Longint;
-      AValue: TContainerStyle);
-    procedure SetOrderedListItemStyle(AValue: TContainerStyle);
+    procedure SetOrderedListStyles(const aIndent: Word; AValue: TParagraphStyle);
+    procedure SetUnorderedListStyles(const aIndent: Word;
+      AValue: TParagraphStyle);
+    procedure SetOrderedListItemStyle(AValue: TParagraphStyle);
     procedure SetParagraphStyles(const aName: String; AValue: TParagraphStyle);
     procedure SetSpanStyles(const aName: String; AValue: TSpanStyle);
     procedure SetStrongStyle(AValue: TSpanStyle);
     procedure SetSubscriptStyle(AValue: TSpanStyle);
     procedure SetSuperscriptStyle(AValue: TSpanStyle);
-    procedure SetUnorderedListItemStyle(AValue: TContainerStyle);
+    procedure SetUnorderedListItemStyle(AValue: TParagraphStyle);
     procedure SetVerseStyle(AValue: TParagraphStyle);
   protected
     class procedure WSRegisterClass; override;
@@ -171,7 +180,7 @@ type
 
 
     // style applied to all content, unless overridden by contained elements.
-    property BodyStyle: TContainerStyle read GetBodyStyle write SetBodyStyle;
+    property BodyStyle: TBodyStyle read GetBodyStyle write SetBodyStyle;
 
     property EmphasisStyle: TSpanStyle read GetEmphasisStyle write SetEmphasisStyle;
     property StrongStyle: TSpanStyle read GetStrongStyle write SetStrongStyle;
@@ -189,20 +198,14 @@ type
     property DefaultHeadingStyle: TParagraphStyle read GetHeadingStyle write SetHeadingStyle;
     property HeadingStyle[const aLevel: TWYSIWYMHeadingLevel]: TParagraphStyle read GetHeadingStyle write SetHeadingStyle;
     property VerseStyle: TParagraphStyle read GetVerseStyle write SetVerseStyle;
+    property DefaultBlockQuoteStyle: TParagraphStyle read GetBlockQuoteStyle write SetBlockQuoteStyle;
+    property BlockQuoteStyle[const aIndent: Word]: TParagraphStyle read GetBlockQuoteStyle write SetBlockQuoteStyle;
+    property DefaultOrderedListItemStyle: TParagraphStyle read GetOrderedListItemStyle write SetOrderedListItemStyle;
+    property OrderedListItemStyle[const aIndent: Word]: TParagraphStyle read GetOrderedListStyles write SetOrderedListStyles;
+    property DefaultUnorderedListItemStyle: TParagraphStyle read GetUnorderedListItemStyle write SetUnorderedListItemStyle;
+    property UnorderedListItemStyle[const aIndent: Word]: TParagraphStyle read GetUnorderedListStyles write SetUnorderedListStyles;
     // specify styles for custom paragraph classes.
     property ParagraphStyles[const aName: String]: TParagraphStyle read GetParagraphStyles write SetParagraphStyles;
-
-    // container styles are applied to all contained paragraphs, unless overridden
-    // by a contained container or paragraph.
-    property BlockQuoteStyle: TContainerStyle read GetBlockQuoteStyle write SetBlockQuoteStyle;
-    property OrderedListItemStyle: TContainerStyle read GetOrderedListItemStyle write SetOrderedListItemStyle;
-    property UnorderedListItemStyle: TContainerStyle read GetUnorderedListItemStyle write SetUnorderedListItemStyle;
-    property ContainerStyles[const aName: String]: TContainerStyle read GetContainerStyles write SetContainerStyles;
-
-    // the nested styles allow overriding the list styles for list items inside of
-    // other lists.
-    property NestedOrderedListStyles[const aLevel: Longint]: TContainerStyle read GetNestedOrderedListStyles write SetNestedOrderedListStyles;
-    property NestedUnorderedListStyles[const aLevel: Longint]: TContainerStyle read GetNestedUnorderedListStyles write SetNestedUnorderedListStyles;
 
     // these allow manipulation of the contained styles.
     property StyleCount: Longint read GetStyleCount;
@@ -214,23 +217,20 @@ type
 
   TWYSIWYMReceiver = class;
 
-  TWYSIWYMProviderNodeKind = (pnkContainerStart, pnkParagraphStart, pnkSpanStart, pnkText, pnkSpanEnd, pnkParagraphEnd, pnkContainerEnd);
-  TWYSIWYMNodeClass = (pncText, pncEmphasis, pncStrong, pncCode, pncSubscript,
-                               pncSuperscript, pncCustomSpan, pncLink, pncLinebreak,
-                               pncNormalParagraph, pncHeading, pncVerse, pncHorizontalRule,
-                               pncCustomParagraph, pncBlockQuote, pncOrderedListItem,
-                               pncUnorderedListItem, pncCustomContainer);
+  TWYSIWYMProviderNodeKind = (pnkParagraphStart, pnkSpanStart, pnkText, pnkSpanEnd, pnkParagraphEnd);
 
   { TWYSIWYMProvider }
 
   TWYSIWYMProvider = class
   public
     function NodeKind: TWYSIWYMProviderNodeKind; virtual; abstract;
-    function NodeClass: TWYSIWYMNodeClass; virtual; abstract;
-    function NodeName: String; virtual; abstract;
-    function NodeLinkReference: String; virtual; abstract;
-    function NodeHeadingLevel: TWYSIWYMHeadingLevel; virtual; abstract;
-    function NodeTextContent: String; virtual; abstract;
+    function SpanKind: TWYSIWYMSpanKind; virtual; abstract;
+    function ParagraphKind: TWYSIWYMParagraphKind; virtual; abstract;
+    function CustomClass: String; virtual; abstract;
+    function LinkReference: String; virtual; abstract;
+    function HeadingLevel: TWYSIWYMHeadingLevel; virtual; abstract;
+    function IndentLevel: Word; virtual; abstract;
+    function TextContent: String; virtual; abstract;
     function ReadNext: Boolean; virtual; abstract;
     procedure Pipe(aReceiver: TWYSIWYMReceiver);
 
@@ -270,16 +270,14 @@ type
     procedure VerseStarted; virtual; abstract;
     procedure VerseFinished; virtual; abstract;
     procedure HorizontalRuleFound; virtual; abstract;
+    procedure BlockQuoteStarted(aIndent: Word); virtual; abstract;
+    procedure BlockQuoteFinished(aIndent: Word); virtual; abstract;
+    procedure OrderedListItemStarted(aIndent: Word); virtual; abstract;
+    procedure OrderedListItemFinished(aIndent: Word); virtual; abstract;
+    procedure UnorderedListItemStarted(aIndent: Word); virtual; abstract;
+    procedure UnorderedListItemFinished(aIndent: Word); virtual; abstract;
     procedure CustomParagraphStarted(const aClass: String); virtual; abstract;
     procedure CustomParagraphFinished(const aClass: String); virtual; abstract;
-    procedure BlockQuoteStarted; virtual; abstract;
-    procedure BlockQuoteFinished; virtual; abstract;
-    procedure OrderedListItemStarted; virtual; abstract;
-    procedure OrderedListItemFinished; virtual; abstract;
-    procedure UnorderedListItemStarted; virtual; abstract;
-    procedure UnorderedListItemFinished; virtual; abstract;
-    procedure CustomContainerStarted(const aClass: STring); virtual; abstract;
-    procedure CustomContainerFinished(const aClass: String); virtual; abstract;
   end;
 
   TWYSIWYMProcessorClass = class of TWYSIWYMReceiver;
@@ -293,7 +291,7 @@ type
   TWYSIWYMSerializerClass = class of TWYSIWYMSerializer;
 
   TSearchDirection = (sdSelectionToEnd, sdStartToSelection, sdSelectionToBeginning, sdEndToSelection);
-  TWYSIWYMNodeKind = (dnkContainer, dnkParagraph, dnkSpan, dnkText);
+  TNodeSelectionState = (nssUnselected, nssSelected, nssContainsSelection, nssContainsSelectionStartOnly, nssContainsSelectionEndOnly);
   TWYSIWYMNode = type Longint; // TODO: Not sure what to make this...
 
   { TWYSIWYMEditor }
@@ -324,15 +322,16 @@ type
   according to the structure. As well as make changes based on this query, but
   I haven't figured out exactly how to do that, yet.
 
-  The structure of a document in WYSIWYMEditor has four kinds: containers,
+  The structure of a document in WYSIWYMEditor is a 'tree' structure, with nodes
+  that contain other nodes. There are has four kinds of nodes: body,
   paragraphs, spans and text. Text represents actual text content. A span
   is a wrapper around inline text and other spans, which indicates a
   structure that won't effect the layout. A paragraph is a single block
   of text and spans, with spacing around it, separating it from other paragraphs
-  and forcing it to flow down the page instead of across. A container is a
-  wrapper around a group of paragraphs which cause them to behave in a similar
-  manner. At some point in the future I may add an inset structure type, for
-  embedding images, figures and other content.
+  and forcing it to flow down the page instead of across. The body represents
+  the content of the entire document. At some point in the future I may add other
+  kind embedding images, figures and object content, but these may be limited to
+  a paragraph kind.
 
   The actual defined structural types are below. Their names are given, but the
   meaning isn't always provided. In general, it is actually up to the developer
@@ -354,13 +353,11 @@ type
   there are a few cases, such as horizontal-rules, where this is done slightly
   differently).
 
-  A container can only contain other containers and a paragraph. There are a few
-  ways to manipulate containers: You can wrap the current paragraph in a new container,
-  you can move the current paragraph into the container just before or after it in the
-  flow, and you can move a paragraph out of a container (and into the container's
-  parent, if there is one). Empty containers should get cleared away, so the only
-  way to delete a container is to remove all of its contents. The body of a document
-  is basically a container, but nothing can be moved out of it.
+  In addition, certain paragraph types have additional properties. A Heading has
+  a level, there are up to 6 of them. Block quotes and list items have an indent
+  level, anywhere from 0 and up. To simulate nesting of these constructs, "child"
+  objects can be given higher indent levels (see comments below on nesting these
+  things).
 
   spans:
   - emphasis
@@ -368,28 +365,54 @@ type
   - code
   - subscript
   - superscript
-  - custom (contains a 'class' attribute in invisible text or something)
+  - custom-span (contains a 'class' attribute in invisible text or something)
   - link: text which represents a link to another document (specified in some
   invisible text).
   - line-break: represents a break between lines that doesn't cause a new paragraph.
 
   paragraphs:
   - normal
-  - heading1
-  - heading2
-  - heading3
-  - heading4
-  - heading5
-  - heading6
+  - heading (with importance level)
   - verse
   - horizontal-rule
-  - custom
+  - block-quote (with indent level)
+  - ordered-list-item (with indent level)
+  - unordered-list-item (with indent level)
+  - custom-paragraph
 
-  container:
-  - block-quote
-  - ordered-list-item
-  - unordered-list-item
-  - custom
+
+    On Nesting Blocks:
+
+    You'll note that other structured documents allow nesting of certain block
+    content inside of other block content. Here, I've factored that possibility
+    out for the needs of simplicity. By keeping the style with the paragraph, it
+    is easier to support this in the widgetset, whereas allowing arbitrary nesting
+    of higher-level containers would require more complex algorithms to figure out
+    exactly what level a given piece of text is when said searches become necessary.
+
+    The only functionaliy this removes from a user-interface perspective is the
+    ability to have one bullet point for multiple paragraphs at the same indent
+    level. This is a common limitation in editors, however, and I don't think it's
+    led to major complaints. If an author's bullet items are getting so big that you need
+    more than one paragraph, then the author should probably consider shifting to
+    a heading/body structure for these things instead.
+
+    In fact, removing this requirement probably removes most reasons for a user
+    to need to review the actual tags being used, since the paragraphs separations
+    are always obvious.
+
+    Apart from this, the only thing the user sees is the bullet, or the indentation
+    of the block quote. The separation between the items is going to be the same
+    whether it contains a paragraph or not. So, for all the user cares, they are
+    separate paragraphs anyway. The visibility of this difference may be more
+    obvious if borders are used in styling these items, however, those aren't
+    available in this component right now, and if they ever are, certain actions
+    can be taken to "merge" them together when they're right next to each other.
+
+    The other thing to worry about is serialization and deserialization into
+    formats which do support nesting. This is simply a matter of maintaining
+    a 'nesting' state during these processes.
+
   }
 
   TWYSIWYMEditor = class(TWinControl)
@@ -403,6 +426,7 @@ type
     // not doing anything with it at the moment, as I don't completely
     // understand how all of those things work yet.
     procedure DoSelectionChange;
+    // TODO: What other events do we need? I don't need to do to many details.
 
     // selection manipulation
     procedure FindAndSelect(const aText: String; aDirection: TSearchDirection);
@@ -451,23 +475,16 @@ type
     procedure SetParagraphNormal;
     procedure SetParagraphHeading(aLevel: TWYSIWYMHeadingLevel);
     procedure SetParagraphVerse;
+    procedure SetParagraphOrderedListItem(aIndent: Word);
+    procedure SetParagraphUnorderedListItem(aIndent: Word);
+    procedure SetBlockQuote(aIndent: Word);
     procedure SetParagraphCustom(const aClass: String);
     procedure InsertHorizontalRule; // inserts after current paragraph.
     procedure StartNewParagraph; // starts a new paragraph at the current selection,
-                                 // the new paragraph is a normal paragraph, and
-                                 // remains inside the same container.
-
-    // container manipulation
-    procedure WrapParagraphInBlockQuote;
-    procedure WrapParagraphInUnorderedListItem;
-    procedure WrapParagraphInOrderedListItem;
-    procedure WrapParagraphInVerse;
-    procedure WrapParagraphInCustom(const aClass: String);
-    procedure MoveParagraphIntoPreviousContainer;
-    procedure MoveParagraphIntoNextContainer;
-    procedure MoveParagraphOutOfContainer; // NOTE: If it's a paragraph in the middle,
-                                            // this splits the container into two of
-                                            // the same type.
+                                 // if the current paragraph was a heading, the
+                                 // new paragraph becomes a normal paragraph, otherwise
+                                 // it remains the same type of paragraph as
+                                 // the current.
 
     // querying... you can also use the Node struct below to make things a little
     // simpler...
@@ -478,25 +495,36 @@ type
     function GetNodeNextSibling(aNode: TWYSIWYMNode): TWYSIWYMNode;
     function GetNodeParent(aNode: TWYSIWYMNode): TWYSIWYMNode;
     // node properties...
-    // The kind determines if it is a container, paragraph, span or text.
+    // The kind determines if it is a paragraph, span or text.
     function GetNodeKind(aNode: TWYSIWYMNode): TWYSIWYMNodeKind;
-    // the class determines what built-in class it is.
-    function GetNodeClass(aNode: TWYSIWYMNode): TWYSIWYMNodeClass;
-    // If an attempt is made to set a class to a class that's not of the same
-    // kind, then an error will be raised.
-    procedure SetNodeClass(aNode: TWYSIWYMNode; aValue: TWYSIWYMNodeClass);
+    function GetNodeParagraphKind(aNode: TWYSIWYMNode): TWYSIWYMParagraphKind;
+    function GetNodeSpanKind(aNode: TWYSIWYMNode): TWYSIWYMSpanKind;
+    // If an attempt is made to set a paragraph kind on a span, and vice versa
+    // an error will be raised..
+    procedure SetNodeParagraphKind(aNode: TWYSIWYMNode; aValue: TWYSIWYMParagraphKind);
+    procedure SetNodeSpanKind(aNode: TWYSIWYMNode; aValue: TWYSIWYMSpanKind);
     // returns the name of a custom class.
-    function GetNodeName(aNode: TWYSIWYMNode): String; // returns the 'tag name', or 'class' if a custom...
-    procedure SetNodeName(aNode: TWYSIWYMNode; const aValue: String); // yes, we can change this...
+    function GetNodeCustomClass(aNode: TWYSIWYMNode): String; // returns the 'tag name', or 'class' if a custom...
+    procedure SetNodeCustomClass(aNode: TWYSIWYMNode; const aValue: String); // yes, we can change this...
     // returns the reference for a link. If the node is not a link, an error is raised.
-    function GetLinkNodeReference(aNode: TWYSIWYMNode): String;
-    procedure SetLinkNodeReference(aNode: TWYSIWYMNode; const aValue: String);
+    function GetNodeLinkReference(aNode: TWYSIWYMNode): String;
+    procedure SetNodeLinkReference(aNode: TWYSIWYMNode; const aValue: String);
     // returns the text of a node, if the node is not text, an error is raised.
-    function GetTextNodeContent(aNode: TWYSIWYMNode): String; // only works with text.
-    procedure SetTextNodeContent(aNode: TWYSIWYMNode; const aValue: String);
+    function GetNodeTextContent(aNode: TWYSIWYMNode): String; // only works with text.
+    procedure SetNodeTextContent(aNode: TWYSIWYMNode; const aValue: String);
     // returns the level of a heading, if the node is not a heading, an error is raised.
-    function GetHeadingNodeLevel(aNode: TWYSIWYMNode): TWYSIWYMHeadingLevel;
-    procedure SetHeadingNodeLevel(aNode: TWYSIWYMNode; aValue: TWYSIWYMHeadingLevel);
+    function GetNodeHeadingLevel(aNode: TWYSIWYMNode): TWYSIWYMHeadingLevel;
+    procedure SetNodeHeadingLevel(aNode: TWYSIWYMNode; aValue: TWYSIWYMHeadingLevel);
+    // returns the indent level of list items and block quotes. an error is raised if the paragraph doesn't support this.
+    function GetNodeIndentLevel(aNode: TWYSIWYMNode): Word;
+    procedure SetNodeIndentLevel(aNode: TWYSIWYMNode; aValue: Word);
+
+    function GetNodeSelectionState(aNode: TWYSIWYMNode): TNodeSelectionState;
+    // if node is a text node, and state is returns the actual
+    // text within the node that is selected. If node is unselected, then
+    // returns blank. Otherwise, raises an error.
+    function GetNodeSelectedText(aNode: TWYSIWYMNode): String;
+
     // moving things around:
     // if the parent is null, moves node to the body. if the sibling is null,
     // moves the node to be the last child.
@@ -527,6 +555,7 @@ type
     procedure Redo;
 
     // clipboard
+    // TODO: Might need a serializer here...
     procedure PasteFromClipboard;
     procedure CutToClipboard;
     procedure CopyToClipboard;
@@ -559,31 +588,37 @@ type
   private
     fEditor: TWYSIWYMEditor;
     fNode: TWYSIWYMNode;
-    function GetClass: TWYSIWYMNodeClass;
     function GetHeadingLevel: TWYSIWYMHeadingLevel;
+    function GetIndentLevel: Word;
+    function GetParagraphKind: TWYSIWYMParagraphKind;
+    function GetSpanKind: TWYSIWYMSpanKind;
     function GetTextContent: String;
     function GetIsNull: Boolean;
     function GetKind: TWYSIWYMNodeKind;
     function GetLinkReference: String;
-    function GetName: String;
-    procedure SetClass(AValue: TWYSIWYMNodeClass);
+    function GetCustomClass: String;
     procedure SetHeadingLevel(AValue: TWYSIWYMHeadingLevel);
-    procedure SetName(AValue: String);
+    procedure SetIndentLevel(AValue: Word);
+    procedure SetCustomClass(AValue: String);
     procedure SetLinkReference(AValue: String);
+    procedure SetParagraphKind(AValue: TWYSIWYMParagraphKind);
+    procedure SetSpanKind(AValue: TWYSIWYMSpanKind);
     procedure SetTextContent(AValue: String);
   public
     class function New(aEditor: TWYSIWYMEditor; aNode: TWYSIWYMNode): TWYSIWYMDOM; static;
     class function Body(aEditor: TWYSIWYMEditor): TWYSIWYMDOM; static;
     property IsNull: Boolean read GetIsNull;
     property Kind: TWYSIWYMNodeKind read GetKind;
-    property Name: String read GetName write SetName;
-    property &Class: TWYSIWYMNodeClass read GetClass write SetClass;
+    property ParagraphKind: TWYSIWYMParagraphKind read GetParagraphKind write SetParagraphKind;
+    property SpanKind: TWYSIWYMSpanKind read GetSpanKind write SetSpanKind;
+    property Name: String read GetCustomClass write SetCustomClass;
     function FirstChild: TWYSIWYMDOM;
     function NextSibling: TWYSIWYMDOM;
     function Parent: TWYSIWYMDOM;
     property LinkReference: String read GetLinkReference write SetLinkReference;
     property TextContent: String read GetTextContent write SetTextContent;
     property HeadingLevel: TWYSIWYMHeadingLevel read GetHeadingLevel write SetHeadingLevel;
+    property IndentLevel: Word read GetIndentLevel write SetIndentLevel;
     procedure Select(aInclusive: Boolean = false);
     procedure SelectBefore;
     procedure SelectAfter;
@@ -608,77 +643,79 @@ begin
   while ReadNext do
   begin
     case NodeKind of
-      pnkContainerStart,pnkParagraphStart,pnkSpanStart:
-      case NodeClass of
-        pncEmphasis:
-          aReceiver.EmphasisStarted;
-        pncStrong:
-          aReceiver.StrongStarted;
-        pncCode:
-          aReceiver.CodeStarted;
-        pncSubscript:
-          aReceiver.SubscriptStarted;
-        pncSuperscript:
-          aReceiver.SuperscriptStarted;
-        pncCustomSpan:
-          aReceiver.CustomSpanStarted(NodeName);
-        pncLink:
-          aReceiver.LinkStarted(NodeLinkReference);
-        pncLinebreak:
-          aReceiver.LineBreakFound;
-        pncNormalParagraph:
+      pnkParagraphStart:
+      case ParagraphKind of
+        ncNormalParagraph:
           aReceiver.NormalParagraphStarted;
-        pncHeading:
-          aReceiver.HeadingStarted(NodeHeadingLevel);
-        pncVerse:
+        ncHeading:
+          aReceiver.HeadingStarted(HeadingLevel);
+        ncVerse:
           aReceiver.VerseStarted;
-        pncHorizontalRule:
+        ncHorizontalRule:
           aReceiver.HorizontalRuleFound;
-        pncCustomParagraph:
-          aReceiver.CustomParagraphStarted(NodeName);
-        pncBlockQuote:
-          aReceiver.BlockQuoteStarted;
-        pncOrderedListItem:
-          aReceiver.OrderedListItemStarted;
-        pncUnorderedListItem:
-          aReceiver.UnorderedListItemStarted;
-        pncCustomContainer:
-          aReceiver.CustomContainerStarted(NodeName);
+        ncCustomParagraph:
+          aReceiver.CustomParagraphStarted(CustomClass);
+        ncBlockQuote:
+          aReceiver.BlockQuoteStarted(IndentLevel);
+        ncOrderedListItem:
+          aReceiver.OrderedListItemStarted(IndentLevel);
+        ncUnorderedListItem:
+          aReceiver.UnorderedListItemStarted(IndentLevel);
+      end;
+      pnkSpanStart:
+      case SpanKind of
+        ncEmphasis:
+          aReceiver.EmphasisStarted;
+        ncStrong:
+          aReceiver.StrongStarted;
+        ncCode:
+          aReceiver.CodeStarted;
+        ncSubscript:
+          aReceiver.SubscriptStarted;
+        ncSuperscript:
+          aReceiver.SuperscriptStarted;
+        ncCustomSpan:
+          aReceiver.CustomSpanStarted(CustomClass);
+        ncLink:
+          aReceiver.LinkStarted(LinkReference);
+        ncLinebreak:
+          aReceiver.LineBreakFound;
       end;
       pnkText:
-        aReceiver.TextFound(NodeTextContent);
-      pnkSpanEnd,pnkParagraphEnd,pnkContainerEnd:
-      case NodeClass of
-        pncEmphasis:
+        aReceiver.TextFound(TextContent);
+      pnkSpanEnd:
+      case SpanKind of
+        ncEmphasis:
           aReceiver.EmphasisFinished;
-        pncStrong:
+        ncStrong:
           aReceiver.StrongFinished;
-        pncCode:
+        ncCode:
           aReceiver.CodeFinished;
-        pncSubscript:
+        ncSubscript:
           aReceiver.SubscriptFinished;
-        pncSuperscript:
+        ncSuperscript:
           aReceiver.SuperscriptFinished;
-        pncCustomSpan:
-          aReceiver.CustomSpanFinished(NodeName);
-        pncLink:
+        ncCustomSpan:
+          aReceiver.CustomSpanFinished(CustomClass);
+        ncLink:
           aReceiver.LinkFinished;
-        pncNormalParagraph:
+      end;
+      pnkParagraphEnd:
+      case ParagraphKind of
+        ncNormalParagraph:
           aReceiver.NormalParagraphFinished;
-        pncHeading:
-          aReceiver.HeadingFinished(NodeHeadingLevel);
-        pncVerse:
+        ncHeading:
+          aReceiver.HeadingFinished(HeadingLevel);
+        ncVerse:
           aReceiver.VerseFinished;
-        pncCustomParagraph:
-          aReceiver.CustomParagraphFinished(NodeName);
-        pncBlockQuote:
-          aReceiver.BlockQuoteFinished;
-        pncOrderedListItem:
-          aReceiver.OrderedListItemFinished;
-        pncUnorderedListItem:
-          aReceiver.UnorderedListItemFinished;
-        pncCustomContainer:
-          aReceiver.CustomContainerFinished(NodeName);
+        ncCustomParagraph:
+          aReceiver.CustomParagraphFinished(CustomClass);
+        ncBlockQuote:
+          aReceiver.BlockQuoteFinished(IndentLevel);
+        ncOrderedListItem:
+          aReceiver.OrderedListItemFinished(IndentLevel);
+        ncUnorderedListItem:
+          aReceiver.UnorderedListItemFinished(IndentLevel);
       end;
     end;
   end;
@@ -688,17 +725,27 @@ end;
 
 function TWYSIWYMDOM.GetTextContent: String;
 begin
-  result := fEditor.GetTextNodeContent(fNode);
-end;
-
-function TWYSIWYMDOM.GetClass: TWYSIWYMNodeClass;
-begin
-  result := fEditor.GetNodeClass(fNode);
+  result := fEditor.GetNodeTextContent(fNode);
 end;
 
 function TWYSIWYMDOM.GetHeadingLevel: TWYSIWYMHeadingLevel;
 begin
-  result := fEditor.GetHeadingNodeLevel(fNode);
+  result := fEditor.GetNodeHeadingLevel(fNode);
+end;
+
+function TWYSIWYMDOM.GetIndentLevel: Word;
+begin
+  result := fEditor.GetNodeIndentLevel(fNode);
+end;
+
+function TWYSIWYMDOM.GetParagraphKind: TWYSIWYMParagraphKind;
+begin
+  result := fEditor.GetNodeParagraphKind(fNode);
+end;
+
+function TWYSIWYMDOM.GetSpanKind: TWYSIWYMSpanKind;
+begin
+  result := fEditor.GetNodeSpanKind(fNode);
 end;
 
 function TWYSIWYMDOM.GetIsNull: Boolean;
@@ -711,40 +758,53 @@ begin
   result := fEditor.GetNodeKind(fNode);
 end;
 
-function TWYSIWYMDOM.GetName: String;
+function TWYSIWYMDOM.GetCustomClass: String;
 begin
-  result := fEditor.GetNodeName(fNode);
-end;
-
-procedure TWYSIWYMDOM.SetClass(AValue: TWYSIWYMNodeClass);
-begin
-  fEditor.SetNodeClass(fNode,AValue);
+  result := fEditor.GetNodeCustomClass(fNode);
 end;
 
 procedure TWYSIWYMDOM.SetHeadingLevel(AValue: TWYSIWYMHeadingLevel);
 begin
-  fEditor.SetHeadingNodeLevel(fNode,AValue);
+  fEditor.SetNodeHeadingLevel(fNode,AValue);
+end;
+
+procedure TWYSIWYMDOM.SetIndentLevel(AValue: Word);
+begin
+  fEditor.SetNodeIndentLevel(fNode,AValue);
+
 end;
 
 function TWYSIWYMDOM.GetLinkReference: String;
 begin
-  result := fEditor.GetLinkNodeReference(fNode);
+  result := fEditor.GetNodeLinkReference(fNode);
 end;
 
 procedure TWYSIWYMDOM.SetTextContent(AValue: String);
 begin
-  fEditor.SetTextNodeContent(fNode,AValue);
+  fEditor.SetNodeTextContent(fNode,AValue);
 end;
 
-procedure TWYSIWYMDOM.SetName(AValue: String);
+procedure TWYSIWYMDOM.SetCustomClass(AValue: String);
 begin
-  fEditor.SetNodeName(fNode,AValue);
+  fEditor.SetNodeCustomClass(fNode,AValue);
 
 end;
 
 procedure TWYSIWYMDOM.SetLinkReference(AValue: String);
 begin
-  fEditor.SetLinkNodeReference(fNode,AValue);
+  fEditor.SetNodeLinkReference(fNode,AValue);
+end;
+
+procedure TWYSIWYMDOM.SetParagraphKind(AValue: TWYSIWYMParagraphKind);
+begin
+  fEditor.SetNodeParagraphKind(fNode,AValue);
+
+end;
+
+procedure TWYSIWYMDOM.SetSpanKind(AValue: TWYSIWYMSpanKind);
+begin
+  fEditor.SetNodeSpanKind(fNode,AValue);
+
 end;
 
 class function TWYSIWYMDOM.New(aEditor: TWYSIWYMEditor; aNode: TWYSIWYMNode
@@ -832,32 +892,32 @@ end;
 
 procedure TWYSIWYMDOM.Delete;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMDOM.Delete');
 end;
 
 { TWYSIWYMStyleManager }
 
-function TWYSIWYMStyleManager.GetBlockQuoteStyle: TContainerStyle;
+function TWYSIWYMStyleManager.GetBlockQuoteStyle: TParagraphStyle;
 begin
-  result := ContainerStyles[BlockQuoteStyleName];
+  result := ParagraphStyles[BlockQuoteStyleName];
 end;
 
-function TWYSIWYMStyleManager.GetBodyStyle: TContainerStyle;
+function TWYSIWYMStyleManager.GetBlockQuoteStyle(const aIndent: Word
+  ): TParagraphStyle;
 begin
-  result := ContainerStyles[BodyStyleName];
+     result := ParagraphStyles[BlockQuoteStyleName + '-' + IntToStr(aIndent)]
+end;
+
+function TWYSIWYMStyleManager.GetBodyStyle: TBodyStyle;
+begin
+  // TODO: Not sure where to store this...
+  raise ENotImplemented.Create('TWYSIWYMStyleManager.GetBodyStyle');
 
 end;
 
 function TWYSIWYMStyleManager.GetCodeStyle: TSpanStyle;
 begin
   result := SpanStyles[CodeStyleName];
-end;
-
-function TWYSIWYMStyleManager.GetContainerStyles(const aName: String
-  ): TContainerStyle;
-begin
-  // TODO:
-
 end;
 
 function TWYSIWYMStyleManager.GetEmphasisStyle: TSpanStyle;
@@ -883,41 +943,37 @@ begin
 
 end;
 
-function TWYSIWYMStyleManager.GetNestedOrderedListStyles(const aLevel: Longint
-  ): TContainerStyle;
+function TWYSIWYMStyleManager.GetOrderedListStyles(const aIndent: Word
+  ): TParagraphStyle;
 begin
-  if aLevel < 0 then
-     result := GetOrderedListItemStyle
-  else
-    result := ContainerStyles[OrderedListItemStyleName + '-' + IntToStr(aLevel)];
+    result := ParagraphStyles[OrderedListItemStyleName + '-' + IntToStr(aIndent)];
 
 end;
 
-function TWYSIWYMStyleManager.GetNestedUnorderedListStyles(const aLevel: Longint
-  ): TContainerStyle;
+function TWYSIWYMStyleManager.GetUnorderedListStyles(const aIndent: Word
+  ): TParagraphStyle;
 begin
-  if aLevel < 1 then
-     result := GetUnorderedListItemStyle
-  else
-    result := ContainerStyles[UnorderedListItemStyleName + '-' + IntToStr(aLevel)];
+    result := ParagraphStyles[UnorderedListItemStyleName + '-' + IntToStr(aIndent)];
 
 end;
 
-function TWYSIWYMStyleManager.GetOrderedListItemStyle: TContainerStyle;
+function TWYSIWYMStyleManager.GetOrderedListItemStyle: TParagraphStyle;
 begin
-  result := ContainerStyles[OrderedListItemStyleName];
+  result := ParagraphStyles[OrderedListItemStyleName];
 end;
 
 function TWYSIWYMStyleManager.GetParagraphStyles(const aName: String
   ): TParagraphStyle;
 begin
   // TODO:
+  raise ENotImplemented.Create('TWYSIWYMStyleManager.GetParagraphStyles');
 
 end;
 
 function TWYSIWYMStyleManager.GetSpanStyles(const aName: String): TSpanStyle;
 begin
   // TODO:
+  raise ENotImplemented.Create('TWYSIWYMStyleManager.GetSpanStyles');
 end;
 
 function TWYSIWYMStyleManager.GetStrongStyle: TSpanStyle;
@@ -928,22 +984,25 @@ end;
 function TWYSIWYMStyleManager.GetStyleCount: Longint;
 begin
   // TODO:
+  raise ENotImplemented.Create('TWYSIWYMStyleManager.GetStyleCount');
 end;
 
 function TWYSIWYMStyleManager.GetStyleKind(const aIndex: Longint): TStyleKind;
 begin
   // TODO:
+  raise ENotImplemented.Create('TWYSIWYMStyleManager.GetStyleKind');
 end;
 
 function TWYSIWYMStyleManager.GetStyleKind(const aName: String): TStyleKind;
 begin
-  // TODO:
+   // TODO:
+   raise ENotImplemented.Create(' TWYSIWYMStyleManager.GetStyleKind');
 end;
 
 function TWYSIWYMStyleManager.GetStyleName(const aIndex: Longint): String;
 begin
-  // TODO:
-
+   // TODO:
+   raise ENotImplemented.Create(' TWYSIWYMStyleManager.GetStyleName');
 end;
 
 function TWYSIWYMStyleManager.GetSubscriptStyle: TSpanStyle;
@@ -958,9 +1017,9 @@ begin
 
 end;
 
-function TWYSIWYMStyleManager.GetUnorderedListItemStyle: TContainerStyle;
+function TWYSIWYMStyleManager.GetUnorderedListItemStyle: TParagraphStyle;
 begin
-  result := ContainerStyles[UnorderedListItemStyleName];
+  result := ParagraphStyles[UnorderedListItemStyleName];
 
 end;
 
@@ -969,25 +1028,26 @@ begin
   result := ParagraphStyles[VerseStyleName];
 end;
 
-procedure TWYSIWYMStyleManager.SetBlockQuoteStyle(AValue: TContainerStyle);
+procedure TWYSIWYMStyleManager.SetBlockQuoteStyle(AValue: TParagraphStyle);
 begin
-  ContainerStyles[BlockQuoteStyleName] := AValue;
+  ParagraphStyles[BlockQuoteStyleName] := AValue;
 end;
 
-procedure TWYSIWYMStyleManager.SetBodyStyle(AValue: TContainerStyle);
+procedure TWYSIWYMStyleManager.SetBlockQuoteStyle(const aIndent: Word;
+  AValue: TParagraphStyle);
 begin
-  ContainerStyles[BodyStyleName] := AValue;
+  ParagraphStyles[BlockQuoteStyleName + '-' + IntToStr(aIndent)] := AValue;
+end;
+
+procedure TWYSIWYMStyleManager.SetBodyStyle(AValue: TBodyStyle);
+begin
+   // TODO: Not sure where to put this...
+   raise ENotImplemented.Create('TWYSIWYMStyleManager.SetBodyStyle');
 end;
 
 procedure TWYSIWYMStyleManager.SetCodeStyle(AValue: TSpanStyle);
 begin
   SpanStyles[CodeStyleName] := AValue;
-end;
-
-procedure TWYSIWYMStyleManager.SetContainerStyles(const aName: String;
-  AValue: TContainerStyle);
-begin
-  // TODO:
 end;
 
 procedure TWYSIWYMStyleManager.SetEmphasisStyle(AValue: TSpanStyle);
@@ -1013,43 +1073,38 @@ begin
   SpanStyles[LinkStyleName] := AValue;
 end;
 
-procedure TWYSIWYMStyleManager.SetNestedOrderedListStyles(
-  const aLevel: Longint; AValue: TContainerStyle);
+procedure TWYSIWYMStyleManager.SetOrderedListStyles(const aIndent: Word;
+  AValue: TParagraphStyle);
 begin
-  if aLevel < 1 then
-     SetOrderedListItemStyle(AValue)
-  else
-    ContainerStyles[OrderedListItemStyleName + '-' + IntToStr(aLevel)] := AValue;
+  ParagraphStyles[OrderedListItemStyleName + '-' + IntToStr(aIndent)] := AValue;
 
 end;
 
-procedure TWYSIWYMStyleManager.SetNestedUnorderedListStyles(
-  const aLevel: Longint; AValue: TContainerStyle);
+procedure TWYSIWYMStyleManager.SetUnorderedListStyles(const aIndent: Word;
+  AValue: TParagraphStyle);
 begin
-  if aLevel < 1 then
-     SetUnorderedListItemStyle(AValue)
-  else
-    ContainerStyles[UnorderedListItemStyleName + '-' + IntToStr(aLevel)] := AValue;
+  ParagraphStyles[UnorderedListItemStyleName + '-' + IntToStr(aIndent)] := AValue;
 
 end;
 
-procedure TWYSIWYMStyleManager.SetOrderedListItemStyle(AValue: TContainerStyle);
+procedure TWYSIWYMStyleManager.SetOrderedListItemStyle(AValue: TParagraphStyle);
 begin
-  ContainerStyles[OrderedListItemStyleName] := AValue;
+  ParagraphStyles[OrderedListItemStyleName] := AValue;
 
 end;
 
 procedure TWYSIWYMStyleManager.SetParagraphStyles(const aName: String;
   AValue: TParagraphStyle);
 begin
-  // TODO:
-
+   // TODO:
+   raise ENotImplemented.Create('TWYSIWYMStyleManager.SetParagraphStyles');
 end;
 
 procedure TWYSIWYMStyleManager.SetSpanStyles(const aName: String;
   AValue: TSpanStyle);
 begin
-  // TODO:
+   // TODO:
+   raise ENotImplemented.Create('TWYSIWYMStyleManager.SetSpanStyles');
 end;
 
 procedure TWYSIWYMStyleManager.SetStrongStyle(AValue: TSpanStyle);
@@ -1069,10 +1124,9 @@ begin
 
 end;
 
-procedure TWYSIWYMStyleManager.SetUnorderedListItemStyle(AValue: TContainerStyle
-  );
+procedure TWYSIWYMStyleManager.SetUnorderedListItemStyle(AValue: TParagraphStyle);
 begin
-  ContainerStyles[UnorderedListItemStyleName] := AValue;
+  ParagraphStyles[UnorderedListItemStyleName] := AValue;
 
 end;
 
@@ -1089,7 +1143,8 @@ end;
 
 procedure TWYSIWYMStyleManager.DeleteStyle(const aName: String);
 begin
-  // TODO:
+   // TODO:
+   raise ENotImplemented.Create('TWYSIWYMStyleManager.DeleteStyle');
 end;
 
 { TWYSIWYMEditor }
@@ -1110,379 +1165,389 @@ end;
 
 procedure TWYSIWYMEditor.DoSelectionChange;
 begin
-  // TODO: This is here as an example of how to handle signals... leave it for now...
+   // TODO: This is here as an example of how to handle signals... leave it for now...
+   raise ENotImplemented.Create('TWYSIWYMEditor.DoSelectionChange');
 end;
 
 procedure TWYSIWYMEditor.FindAndSelect(const aText: String;
   aDirection: TSearchDirection);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.FindAndSelect');
 end;
 
 procedure TWYSIWYMEditor.ExpandSelectionAtEnd(aCount: Longint);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ExpandSelectionAtEnd');
 end;
 
 procedure TWYSIWYMEditor.ExpandSelectionAtStart(aCount: Longint);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ExpandSelectionAtStart');
 end;
 
 procedure TWYSIWYMEditor.CollapseSelectionAtEnd(aCount: Longint);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.CollapseSelectionAtEnd');
 end;
 
 procedure TWYSIWYMEditor.CollapseSelectionAtStart(aCount: Longint);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.CollapseSelectionAtStart');
 end;
 
 procedure TWYSIWYMEditor.MoveSelectionForward(aCount: Longint);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.MoveSelectionForward');
 end;
 
 procedure TWYSIWYMEditor.MoveSelectionBackward(aCount: Longint);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.MoveSelectionBackward');
 end;
 
 procedure TWYSIWYMEditor.CollapseSelection;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.CollapseSelection');
 end;
 
 procedure TWYSIWYMEditor.EnterText(const aText: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnterText');
 end;
 
 procedure TWYSIWYMEditor.DeleteText;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DeleteText');
 end;
 
 function TWYSIWYMEditor.SelectedText: String;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SelectedText');
 end;
 
 procedure TWYSIWYMEditor.EnableEmphasis;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnableEmphasis');
 end;
 
 procedure TWYSIWYMEditor.DisableEmphasis;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DisableEmphasis');
 end;
 
 procedure TWYSIWYMEditor.ToggleEmphasis;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ToggleEmphasis');
 end;
 
 procedure TWYSIWYMEditor.EnableStrong;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnableStrong');
 end;
 
 procedure TWYSIWYMEditor.DisableStrong;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DisableStrong');
 end;
 
 procedure TWYSIWYMEditor.ToggleStrong;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ToggleStrong');
 end;
 
 procedure TWYSIWYMEditor.EnableCode;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnableCode');
 end;
 
 procedure TWYSIWYMEditor.DisableCode;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DisableCode');
 end;
 
 procedure TWYSIWYMEditor.ToggleCode;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ToggleCode');
 end;
 
 procedure TWYSIWYMEditor.EnableSubscript;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnableSubscript');
 end;
 
 procedure TWYSIWYMEditor.DisableSubscript;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DisableSubscript');
 end;
 
 procedure TWYSIWYMEditor.ToggleSubscript;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ToggleSubscript');
 end;
 
 procedure TWYSIWYMEditor.EnableSuperscript;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnableSuperscript');
 end;
 
 procedure TWYSIWYMEditor.DisableSuperscript;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DisableSuperscript');
 end;
 
 procedure TWYSIWYMEditor.ToggleSuperscript;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ToggleSuperscript');
 end;
 
 procedure TWYSIWYMEditor.EnableCustomSpan(const aClass: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnableCustomSpan');
 end;
 
 procedure TWYSIWYMEditor.DisableCustomSpan(const aClass: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DisableCustomSpan');
 end;
 
 procedure TWYSIWYMEditor.ToggleCustomSpan(const aClass: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.ToggleCustomSpan');
 end;
 
 procedure TWYSIWYMEditor.EnableLink(const aReference: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.EnableLink');
 end;
 
 procedure TWYSIWYMEditor.DisableLink;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DisableLink');
 end;
 
 procedure TWYSIWYMEditor.InsertLineBreak;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.InsertLineBreak');
 end;
 
 procedure TWYSIWYMEditor.SetParagraphNormal;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetParagraphNormal');
 end;
 
 procedure TWYSIWYMEditor.SetParagraphHeading(aLevel: TWYSIWYMHeadingLevel);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetParagraphHeading');
 end;
 
 procedure TWYSIWYMEditor.SetParagraphVerse;
 begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetParagraphVerse');
+end;
 
+procedure TWYSIWYMEditor.SetParagraphOrderedListItem(aIndent: Word);
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetParagraphOrderedListItem');
+end;
+
+procedure TWYSIWYMEditor.SetParagraphUnorderedListItem(aIndent: Word);
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetParagraphUnorderedListItem');
+end;
+
+procedure TWYSIWYMEditor.SetBlockQuote(aIndent: Word);
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetBlockQuote');
 end;
 
 procedure TWYSIWYMEditor.SetParagraphCustom(const aClass: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetParagraphCustom');
 end;
 
 procedure TWYSIWYMEditor.InsertHorizontalRule;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.InsertHorizontalRule');
 end;
 
 procedure TWYSIWYMEditor.StartNewParagraph;
 begin
-
-end;
-
-procedure TWYSIWYMEditor.WrapParagraphInBlockQuote;
-begin
-
-end;
-
-procedure TWYSIWYMEditor.WrapParagraphInUnorderedListItem;
-begin
-
-end;
-
-procedure TWYSIWYMEditor.WrapParagraphInOrderedListItem;
-begin
-
-end;
-
-procedure TWYSIWYMEditor.WrapParagraphInVerse;
-begin
-
-end;
-
-procedure TWYSIWYMEditor.WrapParagraphInCustom(const aClass: String);
-begin
-
-end;
-
-procedure TWYSIWYMEditor.MoveParagraphIntoPreviousContainer;
-begin
-
-end;
-
-procedure TWYSIWYMEditor.MoveParagraphIntoNextContainer;
-begin
-
-end;
-
-procedure TWYSIWYMEditor.MoveParagraphOutOfContainer;
-begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.StartNewParagraph');
 end;
 
 function TWYSIWYMEditor.GetBodyNode: TWYSIWYMNode;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetBodyNode');
 end;
 
 function TWYSIWYMEditor.GetNodeFirstChild(aNode: TWYSIWYMNode): TWYSIWYMNode;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeFirstChild');
 end;
 
 function TWYSIWYMEditor.GetNodeNextSibling(aNode: TWYSIWYMNode): TWYSIWYMNode;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeNextSibling');
 end;
 
 function TWYSIWYMEditor.GetNodeParent(aNode: TWYSIWYMNode): TWYSIWYMNode;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeParent');
 end;
 
 function TWYSIWYMEditor.GetNodeKind(aNode: TWYSIWYMNode): TWYSIWYMNodeKind;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeKind');
 end;
 
-function TWYSIWYMEditor.GetNodeClass(aNode: TWYSIWYMNode): TWYSIWYMNodeClass;
+function TWYSIWYMEditor.GetNodeParagraphKind(aNode: TWYSIWYMNode
+  ): TWYSIWYMParagraphKind;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeParagraphKind');
 end;
 
-procedure TWYSIWYMEditor.SetNodeClass(aNode: TWYSIWYMNode;
-  aValue: TWYSIWYMNodeClass);
+function TWYSIWYMEditor.GetNodeSpanKind(aNode: TWYSIWYMNode): TWYSIWYMSpanKind;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeSpanKind');
 end;
 
-function TWYSIWYMEditor.GetNodeName(aNode: TWYSIWYMNode): String;
+procedure TWYSIWYMEditor.SetNodeParagraphKind(aNode: TWYSIWYMNode;
+  aValue: TWYSIWYMParagraphKind);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetNodeParagraphKind');
 end;
 
-procedure TWYSIWYMEditor.SetNodeName(aNode: TWYSIWYMNode; const aValue: String);
+procedure TWYSIWYMEditor.SetNodeSpanKind(aNode: TWYSIWYMNode;
+  aValue: TWYSIWYMSpanKind);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetNodeSpanKind');
 end;
 
-function TWYSIWYMEditor.GetLinkNodeReference(aNode: TWYSIWYMNode): String;
+function TWYSIWYMEditor.GetNodeCustomClass(aNode: TWYSIWYMNode): String;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeCustomClass');
 end;
 
-procedure TWYSIWYMEditor.SetLinkNodeReference(aNode: TWYSIWYMNode;
+procedure TWYSIWYMEditor.SetNodeCustomClass(aNode: TWYSIWYMNode;
   const aValue: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetNodeCustomClass');
 end;
 
-function TWYSIWYMEditor.GetTextNodeContent(aNode: TWYSIWYMNode): String;
+function TWYSIWYMEditor.GetNodeLinkReference(aNode: TWYSIWYMNode): String;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeLinkReference');
 end;
 
-procedure TWYSIWYMEditor.SetTextNodeContent(aNode: TWYSIWYMNode;
+procedure TWYSIWYMEditor.SetNodeLinkReference(aNode: TWYSIWYMNode;
   const aValue: String);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetNodeLinkReference');
 end;
 
-function TWYSIWYMEditor.GetHeadingNodeLevel(aNode: TWYSIWYMNode
+function TWYSIWYMEditor.GetNodeTextContent(aNode: TWYSIWYMNode): String;
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeTextContent');
+end;
+
+procedure TWYSIWYMEditor.SetNodeTextContent(aNode: TWYSIWYMNode;
+  const aValue: String);
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetNodeTextContent');
+end;
+
+function TWYSIWYMEditor.GetNodeHeadingLevel(aNode: TWYSIWYMNode
   ): TWYSIWYMHeadingLevel;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeHeadingLevel');
 end;
 
-procedure TWYSIWYMEditor.SetHeadingNodeLevel(aNode: TWYSIWYMNode;
+procedure TWYSIWYMEditor.SetNodeHeadingLevel(aNode: TWYSIWYMNode;
   aValue: TWYSIWYMHeadingLevel);
 begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetNodeHeadingLevel');
+end;
 
+function TWYSIWYMEditor.GetNodeIndentLevel(aNode: TWYSIWYMNode): Word;
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeIndentLevel');
+end;
+
+procedure TWYSIWYMEditor.SetNodeIndentLevel(aNode: TWYSIWYMNode; aValue: Word);
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.SetNodeIndentLevel');
+end;
+
+function TWYSIWYMEditor.GetNodeSelectionState(aNode: TWYSIWYMNode
+  ): TNodeSelectionState;
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeSelectionState');
+end;
+
+function TWYSIWYMEditor.GetNodeSelectedText(aNode: TWYSIWYMNode): String;
+begin
+   raise ENotImplemented.Create('TWYSIWYMEditor.GetNodeSelectedText');
 end;
 
 procedure TWYSIWYMEditor.InsertNodeBefore(aNode: TWYSIWYMNode;
   aNewParent: TWYSIWYMNode; aNewSibling: TWYSIWYMNode);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.InsertNodeBefore');
 end;
 
 procedure TWYSIWYMEditor.DeleteNode(aNode: TWYSIWYMNode);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.DeleteNode');
 end;
 
 procedure TWYSIWYMEditor.SelectNode(aNode: TWYSIWYMNode; aInclusive: Boolean);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SelectNode');
 end;
 
 procedure TWYSIWYMEditor.SelectBeforeNode(aNode: TWYSIWYMNode);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SelectBeforeNode');
 end;
 
 procedure TWYSIWYMEditor.SelectAfterNode(aNode: TWYSIWYMNode);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SelectAfterNode');
 end;
 
 procedure TWYSIWYMEditor.SelectNodeStart(aNode: TWYSIWYMNode);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SelectNodeStart');
 end;
 
 procedure TWYSIWYMEditor.SelectNodeEnd(aNode: TWYSIWYMNode);
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.SelectNodeEnd');
 end;
 
 procedure TWYSIWYMEditor.Undo;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.Undo');
 end;
 
 procedure TWYSIWYMEditor.Redo;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.Redo');
 end;
 
 procedure TWYSIWYMEditor.PasteFromClipboard;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.PasteFromClipboard');
 end;
 
 procedure TWYSIWYMEditor.CutToClipboard;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.CutToClipboard');
 end;
 
 procedure TWYSIWYMEditor.CopyToClipboard;
 begin
-
+   raise ENotImplemented.Create('TWYSIWYMEditor.CopyToClipboard');
 end;
 
 function TWYSIWYMEditor.Serialize(aSerializerClass: TWYSIWYMSerializerClass
@@ -1543,13 +1608,14 @@ end;
 
 procedure TWYSIWYMEditor.WriteContentsTo(aReceiver: TWYSIWYMReceiver);
 begin
-  // TODO: scan through the structure and put into the processer.
-
+   // TODO: scan through the structure and put into the processer.
+   raise ENotImplemented.Create('TWYSIWYMEditor.WriteContentsTo');
 end;
 
 procedure TWYSIWYMEditor.LoadContentsFrom(aProvider: TWYSIWYMProvider);
 begin
   // TODO: scan through the structure and put into the processor.
+  raise ENotImplemented.Create('TWYSIWYMEditor.LoadContentsFrom');
 
 end;
 

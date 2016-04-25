@@ -11,6 +11,17 @@ uses
 things aren't actually using OS resources, except internally. 2) A lot of things
 are simply not nullable.}
 
+{
+Inheritance:
+- All content inherits the body/default style.
+- All content inherits the styles provided nodes which contain them.
+- Nested list items and block quotes inherit from the default list and blockquote style
+- Levelled headings inherit from the default heading style.
+
+These last two are probably managed by the widgetset code, by modifying the styles of
+all known list, blockquote and heading styles.
+}
+
 type
   TStyleKind = (skSpan, skParagraph, skContainer);
   TFontStyle = (fsInherited, fsBold, fsItalic, fsUnderline);
@@ -41,9 +52,13 @@ type
     SpaceAboveParagraph: Longint; // negative means inherited
     SpaceBelowParagraph: Longint; // negative means inherited
     Justification: TJustification;
+    // These only apply to list item styles, inheritance comes from
+    // lists with a higher nesting level.
+    ListNumberStyle: TListNumberStyle;
+    ListNumberSuffix: String; // blank means inherited.
   end;
 
-  TContainerStyle = record
+  TBodyStyle = record // similar to TParagraph style, except doesn't have list items.
     FontName: String; // blank means inherited.
     FontSize: Longint; // 0 means inherited
     FontStyle: TFontStyle;
@@ -57,8 +72,6 @@ type
     SpaceAboveParagraph: Longint; // negative means inherited
     SpaceBelowParagraph: Longint; // negative means inherited
     Justification: TJustification;
-    ListNumberStyle: TListNumberStyle;
-    ListNumberSuffix: String; // blank means inherited.
   end;
 
 
